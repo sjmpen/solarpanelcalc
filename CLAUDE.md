@@ -34,7 +34,12 @@ and their electricity contract type (spot price vs. fixed price).
   separately from the electricity retailer) as one of flat / day-night /
   seasonal — see that file's assumed day/night and winter boundary
   definitions (stated as common Finnish DSO approximations, e.g. Elenia's
-  products, not fetched or verified against any live source).
+  products, not fetched or verified against any live source). The same
+  boundaries are re-implemented backend-side in `backend/app/transfer_pricing.py`
+  for the savings calculation.
+- **Savings engine** (`backend/app/savings.py`, `POST /savings/calculate`):
+  combines consumption + a synthesized hourly production curve + pricing
+  into a savings estimate. See "How the savings engine works" below.
 
 ## Running the backend
 
@@ -72,31 +77,58 @@ cd frontend && npx tsc -b         # typecheck
 - **M2** (done): address input — Leaflet map + Nominatim geocoding
 - **M3** (done): PVGIS integration — solar production estimate for location + system params
 - **M4** (done): electricity price integration — spot price history + fixed-price input
-- **M5**: savings engine (consumption + production + pricing) and results view
+- **M5** (done): savings engine (consumption + production + pricing) and results view
 
-**M3 note for M5 (savings engine):** PVGIS `PVcalc` gives monthly averages
-from long-term climate data, not a time series for the user's actual
-2024-2026 consumption period — PVGIS's historical hourly data (`seriescalc`)
-wouldn't calendar-align with that period either. When designing the savings
-math, decide then whether monthly production vs. monthly consumption is
-accurate enough, or whether an hourly pattern-matched approach (PVGIS
-`seriescalc`/`tmy` mapped by month+hour-of-day rather than exact date) is
-worth the added complexity — informed by what M4's pricing data looks like
-too.
+The app is feature-complete per the original roadmap as of M5. Further work
+from here is refinement (see "Known limitations" below), not new milestones.
 
-**M4 note for M5:** unlike M3, Elering's spot price data *does*
-calendar-align with the real consumption period (real historical Nord Pool
-prices, not climate averages) — so for spot-priced savings, fetching the
-actual per-hour prices for the actual consumption dates is realistic, not
-just a pattern-match like PVGIS production. `fetch_spot_prices`/
-`finnish_day_bounds_utc` in `backend/app/pricing.py` currently fetch one
-Finnish calendar day at a time (M4's own scope was a single-day preview,
-not the full ~2-year range) — M5 will need to call it per day across the
-consumption period (or extend it to accept a range) once it knows exactly
-what the savings calc needs. `PricingChoice` and `TransferPricing`
-(`frontend/src/pricing.ts`) are both lifted to `App.tsx` state (`pricing`,
-`transferPricing`) for M5 to consume, same as `location` — `transferPricing`
-is `null` until the user opens and fills in the optional transfer section.
+## How the savings engine works
+
+PVGIS gives monthly production totals (M3); consumption is 15-minute data;
+spot prices are hourly. `backend/app/savings.py`'s `calculate_savings`
+brings them to a common hourly resolution:
+
+1. **`backend/app/solar_shape.py`** synthesizes an hourly production curve:
+   real sunrise/sunset per day for the user's lat/lon (a standard simplified
+   "sunrise equation" — solar declination from day-of-year, hour angle from
+   `arccos(-tan(lat)*tan(decl))`, clamped to `[-1,1]` so polar day/night fall
+   out of the same formula rather than needing special cases), then each
+   day's fair share of its month's PVGIS total (`month_kwh / days_in_month`)
+   is spread across daylight hours as a `sin(pi * fraction)` curve. No
+   equation-of-time correction (~±15 min error at worst — negligible next to
+   the sine-shape approximation itself).
+2. Consumption readings are bucketed into matching hourly sums.
+3. For each hour: `self_consumed = min(consumption, production)`,
+   `exported = max(production - consumption, 0)`, cost is computed both
+   with actual consumption (baseline) and with consumption minus
+   self-consumption (with-solar), at that hour's price (spot, from
+   `fetch_spot_price_range` — a whole-period Elering call, not per-day like
+   `/pricing/spot`'s preview — plus margin; or fixed) plus transfer price
+   (`backend/app/transfer_pricing.py`, mirrors the frontend's boundaries).
+4. Monthly fees (energy + transfer) are added identically to both totals —
+   they cancel out in `savings_eur` but make the two absolute totals
+   meaningful on their own.
+
+**The frontend sends its already-fetched PVGIS monthly estimate** rather
+than having this endpoint re-call PVGIS — so **fixed-price mode needs zero
+external calls**, fully verifiable in this sandbox (confirmed via `curl`
+against a running server with the real 21-month consumption file: sane,
+internally-consistent numbers, sub-second). Spot-price mode still needs one
+Elering call and keeps the "verify locally" caveat.
+
+### Known limitations (deliberate, documented rather than hidden)
+
+- This is a simplified model, not a bill-accurate simulation — surfaced as
+  a permanent note in `SavingsResults.tsx`.
+- Exported (excess) solar is reported in kWh but **not priced** — no export
+  euro figure, since sell-back compensation varies by contract and isn't
+  collected as an input. The headline savings figure is self-consumption
+  savings only, a conservative lower bound.
+- Hours with no matching spot price (e.g. consumption data extending past
+  whatever "today" actually is when run locally, since this sandbox's
+  system clock is set to a fictional future date) are excluded from the
+  totals, not estimated or interpolated.
+- No persistence — every calculation is a fresh request.
 
 ## Fingrid CSV format
 
@@ -121,10 +153,16 @@ When developing in a network-restricted sandbox (e.g. Claude Code's remote
 environment), outbound calls to third-party APIs — PVGIS
 (`re.jrc.ec.europa.eu`), Nominatim (`nominatim.openstreetmap.org`), OSM tile
 servers, and Elering (`dashboard.elering.ee`) — are blocked by the egress
-proxy (confirmed for all four as of M2/M3/M4, each via a direct `curl`
-against the real running backend, not just guessed). Those integrations are
-unit-tested there against recorded fixtures/mocks, and need a live local
-run to confirm real requests/responses before being considered fully done.
+proxy (confirmed for all four via a direct `curl` against the real running
+backend, not just guessed). Those integrations are unit-tested there against
+recorded fixtures/mocks, and need a live local run to confirm real
+requests/responses before being considered fully done. `/savings/calculate`
+in fixed-price mode is the one exception that needs no external calls at
+all (see "How the savings engine works") and was fully verified in-sandbox,
+including a real headless-browser run of the whole upload→location→
+estimate→pricing→results flow (PVGIS mocked at the network boundary with
+Playwright route interception, since only that one call is blocked — the
+rest of the pipeline, including the actual savings math, ran for real).
 Visual/UI checks (screenshots, not just passing tests) are also worth doing
 in-sandbox even though the network calls themselves can't be verified there
 — M3's compass widget had a real CSS bug that only a screenshot caught.

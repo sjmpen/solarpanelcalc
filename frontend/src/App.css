@@ -250,3 +250,57 @@ section h2 {
 .spot-prices th:last-child {
   text-align: right;
 }
+
+.calculate-button {
+  font: inherit;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.calculate-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.savings-headline {
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.savings-headline strong {
+  font-size: 24px;
+}
+
+.chart-scroll {
+  overflow-x: auto;
+  margin-top: 24px;
+}
+
+.chart-gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--text);
+  font-size: 11px;
+}
+
+.chart-bar {
+  fill: var(--accent);
+  cursor: pointer;
+}
+
+.chart-bar-hovered {
+  fill: var(--text-h);
+}
+
+.chart-tooltip {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-h);
+}

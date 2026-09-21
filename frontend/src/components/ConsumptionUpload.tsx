@@ -5,7 +5,11 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
-function ConsumptionUpload() {
+interface ConsumptionUploadProps {
+  onFileSelected?: (file: File | null) => void
+}
+
+function ConsumptionUpload({ onFileSelected }: ConsumptionUploadProps) {
   const [file, setFile] = useState<File | null>(null)
   const [summary, setSummary] = useState<ConsumptionSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +44,11 @@ function ConsumptionUpload() {
             id="consumption-csv"
             type="file"
             accept=".csv"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const selected = event.target.files?.[0] ?? null
+              setFile(selected)
+              onFileSelected?.(selected)
+            }}
           />
         </label>
         <button type="submit" disabled={!file || loading}>

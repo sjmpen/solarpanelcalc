@@ -35,8 +35,13 @@ def finnish_day_bounds_utc(day: date) -> tuple[datetime, datetime]:
 
 
 async def fetch_spot_prices(day: date) -> list[SpotPriceEntry]:
-    """Fetches Finnish day-ahead spot prices for `day`, VAT-inclusive (25.5%)."""
+    """Fetches Finnish day-ahead spot prices for `day` (a Finnish calendar day)."""
     start, end = finnish_day_bounds_utc(day)
+    return await fetch_spot_price_range(start, end)
+
+
+async def fetch_spot_price_range(start: datetime, end: datetime) -> list[SpotPriceEntry]:
+    """Fetches Finnish day-ahead spot prices for [start, end) UTC, VAT-inclusive (25.5%)."""
     query = {
         "start": start.isoformat().replace("+00:00", "Z"),
         "end": end.isoformat().replace("+00:00", "Z"),

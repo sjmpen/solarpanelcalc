@@ -11,9 +11,10 @@ const MONTH_NAMES = [
 
 interface SolarEstimateProps {
   location: Location | null
+  onEstimateChange?: (estimate: SolarProductionEstimate | null) => void
 }
 
-function SolarEstimate({ location }: SolarEstimateProps) {
+function SolarEstimate({ location, onEstimateChange }: SolarEstimateProps) {
   const [peakPowerKw, setPeakPowerKw] = useState('')
   const [tiltDegrees, setTiltDegrees] = useState('40')
   const [compassBearing, setCompassBearing] = useState(180) // South
@@ -31,17 +32,18 @@ function SolarEstimate({ location }: SolarEstimateProps) {
     setLoading(true)
     setError(null)
     setEstimate(null)
+    onEstimateChange?.(null)
 
     try {
-      setEstimate(
-        await estimateSolarProduction(location, {
-          peakPowerKw: Number(peakPowerKw),
-          tiltDegrees: Number(tiltDegrees),
-          azimuthDegrees: compassBearingToPvgisAzimuth(compassBearing),
-          lossPercent: Number(lossPercent),
-          mounting,
-        }),
-      )
+      const result = await estimateSolarProduction(location, {
+        peakPowerKw: Number(peakPowerKw),
+        tiltDegrees: Number(tiltDegrees),
+        azimuthDegrees: compassBearingToPvgisAzimuth(compassBearing),
+        lossPercent: Number(lossPercent),
+        mounting,
+      })
+      setEstimate(result)
+      onEstimateChange?.(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Solar estimate failed')
     } finally {

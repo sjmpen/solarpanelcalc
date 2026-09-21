@@ -75,4 +75,20 @@ describe('SolarEstimate', () => {
 
     expect(await screen.findByText(/Location outside coverage/)).toBeInTheDocument()
   })
+
+  it('reports the estimate to onEstimateChange, resetting it on a new attempt', async () => {
+    const estimate = { annualKwh: 1732.47, monthly: [{ month: 1, kwh: 31.62 }] }
+    estimateSolarProductionMock.mockResolvedValue(estimate)
+    const onEstimateChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(<SolarEstimate location={{ lat: 60.17, lon: 24.94 }} onEstimateChange={onEstimateChange} />)
+
+    await user.type(screen.getByLabelText(/peak power/i), '5')
+    await user.click(screen.getByRole('button', { name: /estimate production/i }))
+
+    expect(await screen.findByText(/1,732.47 kWh\/year/)).toBeInTheDocument()
+    expect(onEstimateChange).toHaveBeenNthCalledWith(1, null)
+    expect(onEstimateChange).toHaveBeenNthCalledWith(2, estimate)
+  })
 })
