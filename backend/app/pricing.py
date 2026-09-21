@@ -7,10 +7,15 @@ from pydantic import BaseModel
 ELERING_PRICE_URL = "https://dashboard.elering.ee/api/nps/price"
 HELSINKI_TZ = ZoneInfo("Europe/Helsinki")
 
+# Elering's NPS price is the pre-tax Nord Pool exchange price. Finnish
+# electricity is subject to 25.5% VAT, which we add here so the price
+# shown is what the user would actually be billed.
+FINLAND_VAT_MULTIPLIER = 1.255
+
 
 class SpotPriceEntry(BaseModel):
     timestamp: datetime  # UTC
-    price_cents_per_kwh: float
+    price_cents_per_kwh: float  # VAT-inclusive (25.5%)
 
 
 class SpotPriceResponse(BaseModel):
@@ -30,6 +35,7 @@ def finnish_day_bounds_utc(day: date) -> tuple[datetime, datetime]:
 
 
 async def fetch_spot_prices(day: date) -> list[SpotPriceEntry]:
+    """Fetches Finnish day-ahead spot prices for `day`, VAT-inclusive (25.5%)."""
     start, end = finnish_day_bounds_utc(day)
     query = {
         "start": start.isoformat().replace("+00:00", "Z"),
@@ -52,7 +58,7 @@ async def fetch_spot_prices(day: date) -> list[SpotPriceEntry]:
         entries = [
             SpotPriceEntry(
                 timestamp=datetime.fromtimestamp(row["timestamp"], tz=UTC),
-                price_cents_per_kwh=row["price"] / 10,
+                price_cents_per_kwh=row["price"] / 10 * FINLAND_VAT_MULTIPLIER,
             )
             for row in fi_entries
         ]

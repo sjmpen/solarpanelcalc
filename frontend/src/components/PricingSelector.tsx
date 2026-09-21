@@ -76,7 +76,7 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
 
       {mode === 'fixed' && (
         <label className="fixed-price-field" htmlFor="fixed-price">
-          Price (c/kWh)
+          Price (c/kWh, incl. VAT)
           <input
             id="fixed-price"
             type="number"
@@ -90,7 +90,9 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
 
       {mode === 'spot' && (
         <>
-          <p>Preview a day's hourly spot prices.</p>
+          <p>
+            Preview a day's hourly spot prices. Prices include 25.5% VAT.
+          </p>
           <form className="spot-form" onSubmit={handleLoadPrices}>
             <label htmlFor="spot-date">
               Date

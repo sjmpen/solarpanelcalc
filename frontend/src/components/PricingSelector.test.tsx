@@ -22,7 +22,7 @@ describe('PricingSelector', () => {
 
     render(<PricingSelector onPricingChange={onPricingChange} />)
 
-    await user.type(screen.getByLabelText(/price \(c\/kwh\)/i), '8.5')
+    await user.type(screen.getByLabelText(/price \(c\/kwh/i), '8.5')
 
     expect(onPricingChange).toHaveBeenLastCalledWith({ type: 'fixed', priceCentsPerKwh: 8.5 })
   })
@@ -38,6 +38,7 @@ describe('PricingSelector', () => {
 
     await user.click(screen.getByRole('radio', { name: /spot price/i }))
     expect(onPricingChange).toHaveBeenCalledWith({ type: 'spot' })
+    expect(screen.getByText(/25\.5% vat/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /load prices/i }))
 

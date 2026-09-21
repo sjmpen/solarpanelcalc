@@ -58,7 +58,8 @@ async def test_fetch_spot_prices_parses_finnish_entries_and_converts_units(
     entries = await fetch_spot_prices(date(2024, 6, 14))
 
     assert len(entries) == 24
-    assert entries[0].price_cents_per_kwh == pytest.approx(4.567)  # 45.67 EUR/MWh -> 4.567 c/kWh
+    # 45.67 EUR/MWh -> 4.567 c/kWh pre-tax -> * 1.255 (25.5% VAT) = 5.731585
+    assert entries[0].price_cents_per_kwh == pytest.approx(5.731585)
     assert entries == sorted(entries, key=lambda e: e.timestamp)
 
 

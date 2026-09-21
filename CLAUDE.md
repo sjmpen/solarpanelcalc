@@ -19,7 +19,11 @@ and their electricity contract type (spot price vs. fixed price).
 - **Electricity pricing**: Elering's day-ahead price API
   (`dashboard.elering.ee`, no API key) for spot prices (`fi` market, EUR/MWh
   converted to c/kWh) — chosen over `api.porssisahko.net` for its historical
-  depth. Fixed price is just a number the user enters, no API. See
+  depth. Elering's price is pre-tax; `FINLAND_VAT_MULTIPLIER` (1.255, i.e.
+  25.5% VAT) is applied before returning it, so `SpotPriceEntry.price_cents_per_kwh`
+  is always VAT-inclusive — the frontend says so next to the spot price
+  preview. Fixed price is just a number the user enters, and is assumed to
+  already include VAT (no way to check that server-side). See
   `backend/app/pricing.py`, including `finnish_day_bounds_utc` (Finnish
   calendar day → UTC range via `zoneinfo`, DST-aware).
 
