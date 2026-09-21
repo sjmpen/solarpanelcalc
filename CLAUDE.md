@@ -16,6 +16,12 @@ and their electricity contract type (spot price vs. fixed price).
   key) — monthly + annual kWh estimate from location + system params
   (peak power, tilt, azimuth, loss %, mounting). See `backend/app/pvgis.py`.
   Deliberately monthly, not hourly — see M3 notes below.
+- **Electricity pricing**: Elering's day-ahead price API
+  (`dashboard.elering.ee`, no API key) for spot prices (`fi` market, EUR/MWh
+  converted to c/kWh) — chosen over `api.porssisahko.net` for its historical
+  depth. Fixed price is just a number the user enters, no API. See
+  `backend/app/pricing.py`, including `finnish_day_bounds_utc` (Finnish
+  calendar day → UTC range via `zoneinfo`, DST-aware).
 
 ## Running the backend
 
@@ -52,7 +58,7 @@ cd frontend && npx tsc -b         # typecheck
 - **M1** (done): frontend scaffold (Vite + React + TS) + CSV upload UI
 - **M2** (done): address input — Leaflet map + Nominatim geocoding
 - **M3** (done): PVGIS integration — solar production estimate for location + system params
-- **M4**: electricity price integration — spot price history + fixed-price input
+- **M4** (done): electricity price integration — spot price history + fixed-price input
 - **M5**: savings engine (consumption + production + pricing) and results view
 
 **M3 note for M5 (savings engine):** PVGIS `PVcalc` gives monthly averages
@@ -64,6 +70,18 @@ accurate enough, or whether an hourly pattern-matched approach (PVGIS
 `seriescalc`/`tmy` mapped by month+hour-of-day rather than exact date) is
 worth the added complexity — informed by what M4's pricing data looks like
 too.
+
+**M4 note for M5:** unlike M3, Elering's spot price data *does*
+calendar-align with the real consumption period (real historical Nord Pool
+prices, not climate averages) — so for spot-priced savings, fetching the
+actual per-hour prices for the actual consumption dates is realistic, not
+just a pattern-match like PVGIS production. `fetch_spot_prices`/
+`finnish_day_bounds_utc` in `backend/app/pricing.py` currently fetch one
+Finnish calendar day at a time (M4's own scope was a single-day preview,
+not the full ~2-year range) — M5 will need to call it per day across the
+consumption period (or extend it to accept a range) once it knows exactly
+what the savings calc needs. `PricingChoice` (`frontend/src/pricing.ts`) is
+already lifted to `App.tsx` state for M5 to consume, same as `location`.
 
 ## Fingrid CSV format
 
@@ -87,7 +105,11 @@ local testing instead.
 When developing in a network-restricted sandbox (e.g. Claude Code's remote
 environment), outbound calls to third-party APIs — PVGIS
 (`re.jrc.ec.europa.eu`), Nominatim (`nominatim.openstreetmap.org`), OSM tile
-servers, and Finnish spot price APIs (M4) — are blocked by the egress proxy
-(confirmed for all of PVGIS/Nominatim/tiles as of M2/M3). Those integrations
-are unit-tested there against recorded fixtures/mocks, and need a live local
+servers, and Elering (`dashboard.elering.ee`) — are blocked by the egress
+proxy (confirmed for all four as of M2/M3/M4, each via a direct `curl`
+against the real running backend, not just guessed). Those integrations are
+unit-tested there against recorded fixtures/mocks, and need a live local
 run to confirm real requests/responses before being considered fully done.
+Visual/UI checks (screenshots, not just passing tests) are also worth doing
+in-sandbox even though the network calls themselves can't be verified there
+— M3's compass widget had a real CSS bug that only a screenshot caught.

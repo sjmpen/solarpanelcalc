@@ -1,8 +1,11 @@
+from datetime import date
+
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.csv_parser import InvalidConsumptionCsv, parse_fingrid_csv, summarize
 from app.models import ConsumptionSummary
+from app.pricing import PricingError, SpotPriceResponse, fetch_spot_prices
 from app.pvgis import (
     PvgisError,
     SolarEstimateRequest,
@@ -49,3 +52,12 @@ async def estimate_solar_production(request: SolarEstimateRequest) -> SolarProdu
         return await fetch_solar_production(request.lat, request.lon, params)
     except PvgisError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/pricing/spot", response_model=SpotPriceResponse)
+async def get_spot_prices(date: date) -> SpotPriceResponse:
+    try:
+        entries = await fetch_spot_prices(date)
+    except PricingError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return SpotPriceResponse(date=date, entries=entries)

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 import app.main as main
 from app.main import app
+from app.pricing import PricingError, SpotPriceEntry
 from app.pvgis import MonthlyProduction, PvgisError, SolarProductionEstimate
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_consumption.csv"
@@ -78,4 +79,41 @@ def test_solar_estimate_maps_pvgis_error_to_502(monkeypatch: pytest.MonkeyPatch)
 
 def test_solar_estimate_rejects_invalid_params():
     response = client.post("/solar/estimate", json={**VALID_ESTIMATE_REQUEST, "peak_power_kw": -1})
+    assert response.status_code == 422
+
+
+async def _fake_fetch_spot_prices(day):
+    from datetime import UTC, datetime
+
+    return [SpotPriceEntry(timestamp=datetime(2024, 6, 14, 12, tzinfo=UTC), price_cents_per_kwh=4.567)]
+
+
+async def _fake_fetch_spot_prices_error(day):
+    raise PricingError("Elering returned 400: Invalid date range")
+
+
+def test_spot_prices_returns_entries(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(main, "fetch_spot_prices", _fake_fetch_spot_prices)
+
+    response = client.get("/pricing/spot", params={"date": "2024-06-14"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["date"] == "2024-06-14"
+    assert body["entries"] == [
+        {"timestamp": "2024-06-14T12:00:00Z", "price_cents_per_kwh": 4.567}
+    ]
+
+
+def test_spot_prices_maps_pricing_error_to_502(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(main, "fetch_spot_prices", _fake_fetch_spot_prices_error)
+
+    response = client.get("/pricing/spot", params={"date": "2024-06-14"})
+
+    assert response.status_code == 502
+    assert "Invalid date range" in response.json()["detail"]
+
+
+def test_spot_prices_rejects_invalid_date():
+    response = client.get("/pricing/spot", params={"date": "not-a-date"})
     assert response.status_code == 422

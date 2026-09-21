@@ -10,7 +10,8 @@ section h2 {
 
 .upload-form,
 .search-form,
-.solar-form {
+.solar-form,
+.spot-form {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -19,7 +20,9 @@ section h2 {
 
 .upload-form label,
 .search-form label,
-.solar-form label {
+.solar-form label,
+.spot-form label,
+.fixed-price-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -29,11 +32,17 @@ section h2 {
 
 .search-form input[type='text'],
 .solar-form input,
-.solar-form select {
+.solar-form select,
+.spot-form input,
+.fixed-price-field input {
   font: inherit;
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
+}
+
+.fixed-price-field input {
+  width: 120px;
 }
 
 .search-form input[type='text'] {
@@ -104,7 +113,8 @@ section h2 {
 .upload-form button,
 .search-form button,
 .search-results button,
-.solar-form button {
+.solar-form button,
+.spot-form button {
   font: inherit;
   padding: 8px 16px;
   border-radius: 6px;
@@ -116,9 +126,25 @@ section h2 {
 
 .upload-form button:disabled,
 .search-form button:disabled,
-.solar-form button:disabled {
+.solar-form button:disabled,
+.spot-form button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.pricing-mode {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.pricing-mode label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
 }
 
 .search-results {
@@ -182,20 +208,25 @@ section h2 {
   text-align: right;
 }
 
-.monthly-production {
+.monthly-production,
+.spot-prices {
   margin-top: 16px;
   width: 100%;
   border-collapse: collapse;
 }
 
 .monthly-production th,
-.monthly-production td {
+.monthly-production td,
+.spot-prices th,
+.spot-prices td {
   text-align: left;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
 }
 
 .monthly-production td:last-child,
-.monthly-production th:last-child {
+.monthly-production th:last-child,
+.spot-prices td:last-child,
+.spot-prices th:last-child {
   text-align: right;
 }
