@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { compassBearingToPvgisAzimuth, directionLabel } from '../compass'
 import { estimateSolarProduction, type SolarProductionEstimate } from '../solar'
+import CompassPicker from './CompassPicker'
 import type { Location } from './LocationPicker'
 
 const MONTH_NAMES = [
@@ -14,7 +16,7 @@ interface SolarEstimateProps {
 function SolarEstimate({ location }: SolarEstimateProps) {
   const [peakPowerKw, setPeakPowerKw] = useState('')
   const [tiltDegrees, setTiltDegrees] = useState('40')
-  const [azimuthDegrees, setAzimuthDegrees] = useState('0')
+  const [compassBearing, setCompassBearing] = useState(180) // South
   const [lossPercent, setLossPercent] = useState('14')
   const [mounting, setMounting] = useState<'free' | 'building'>('free')
 
@@ -35,7 +37,7 @@ function SolarEstimate({ location }: SolarEstimateProps) {
         await estimateSolarProduction(location, {
           peakPowerKw: Number(peakPowerKw),
           tiltDegrees: Number(tiltDegrees),
-          azimuthDegrees: Number(azimuthDegrees),
+          azimuthDegrees: compassBearingToPvgisAzimuth(compassBearing),
           lossPercent: Number(lossPercent),
           mounting,
         }),
@@ -83,17 +85,11 @@ function SolarEstimate({ location }: SolarEstimateProps) {
               />
             </label>
 
-            <label htmlFor="azimuth">
-              Azimuth (° from south)
-              <input
-                id="azimuth"
-                type="number"
-                min="-180"
-                max="180"
-                value={azimuthDegrees}
-                onChange={(event) => setAzimuthDegrees(event.target.value)}
-              />
-            </label>
+            <div className="compass-field">
+              <span>Panel direction</span>
+              <CompassPicker bearingDegrees={compassBearing} onChange={setCompassBearing} />
+              <span className="compass-label">Facing {directionLabel(compassBearing)}</span>
+            </div>
 
             <label htmlFor="loss">
               System loss (%)

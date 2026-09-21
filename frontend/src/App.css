@@ -44,6 +44,63 @@ section h2 {
   width: 120px;
 }
 
+.compass-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.compass {
+  position: relative;
+}
+
+.compass-ring {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.compass-arrow {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.compass-arrow-head,
+.compass-center {
+  fill: var(--accent);
+}
+
+.compass .compass-point {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: 600 12px/1 var(--sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.compass .compass-point.selected {
+  background: var(--text-h);
+  color: var(--bg);
+  border-color: var(--text-h);
+}
+
+.compass-label {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
 .upload-form button,
 .search-form button,
 .search-results button,

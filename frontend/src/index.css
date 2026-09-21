@@ -5,6 +5,7 @@
   --border: #e5e4e7;
   --error: #c0392b;
   --error-bg: #fdecea;
+  --accent: #aa3bff;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -28,6 +29,7 @@
     --border: #2e303a;
     --error: #f87171;
     --error-bg: #2a1a1a;
+    --accent: #c084fc;
   }
 }
 

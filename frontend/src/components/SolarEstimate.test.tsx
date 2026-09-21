@@ -37,9 +37,28 @@ describe('SolarEstimate', () => {
     expect(await screen.findByText(/1,732.47 kWh\/year/)).toBeInTheDocument()
     expect(screen.getByText('January')).toBeInTheDocument()
 
+    // default compass direction is South, which is PVGIS azimuth 0
     expect(estimateSolarProductionMock).toHaveBeenCalledWith(
       { lat: 60.17, lon: 24.94 },
       expect.objectContaining({ peakPowerKw: 5, tiltDegrees: 40, azimuthDegrees: 0 }),
+    )
+  })
+
+  it('converts the picked compass direction to PVGIS azimuth', async () => {
+    estimateSolarProductionMock.mockResolvedValue({ annualKwh: 1000, monthly: [] })
+    const user = userEvent.setup()
+
+    render(<SolarEstimate location={{ lat: 60.17, lon: 24.94 }} />)
+
+    await user.type(screen.getByLabelText(/peak power/i), '5')
+    await user.click(screen.getByRole('button', { name: 'West' }))
+    expect(screen.getByText('Facing West')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /estimate production/i }))
+
+    expect(estimateSolarProductionMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ azimuthDegrees: 90 }),
     )
   })
 
