@@ -102,8 +102,12 @@ brings them to a common hourly resolution:
    `exported = max(production - consumption, 0)`, cost is computed both
    with actual consumption (baseline) and with consumption minus
    self-consumption (with-solar), at that hour's price (spot, from
-   `fetch_spot_price_range` — a whole-period Elering call, not per-day like
-   `/pricing/spot`'s preview — plus margin; or fixed) plus transfer price
+   `fetch_spot_price_range` — the whole consumption period from Elering in
+   as few calls as possible, not per-day like `/pricing/spot`'s preview,
+   chunked into <=350-day requests since Elering rejects a single request
+   spanning more than 1 year (confirmed against the real API — a ~2-year
+   Fingrid export needs 2-3 chunked requests) — plus margin; or fixed) plus
+   transfer price
    (`backend/app/transfer_pricing.py`, mirrors the frontend's boundaries).
 4. Monthly fees (energy + transfer) are added identically to both totals —
    they cancel out in `savings_eur` but make the two absolute totals
@@ -163,6 +167,15 @@ including a real headless-browser run of the whole upload→location→
 estimate→pricing→results flow (PVGIS mocked at the network boundary with
 Playwright route interception, since only that one call is blocked — the
 rest of the pipeline, including the actual savings math, ran for real).
+
+This is exactly why the "verify locally" caveat matters: the first real
+local run of spot-price mode hit `fetch_spot_price_range` sending the
+whole ~21-month consumption range in one Elering request, which Elering
+rejected ("Maximum period is 1 year") — invisible from this sandbox since
+the call never reaches Elering here at all, only a local run with real
+network access surfaced it. Fixed with request chunking (`MAX_REQUEST_RANGE`
+in `backend/app/pricing.py`), covered by tests asserting the actual call
+count for both a sub-year and a >1000-day range.
 Visual/UI checks (screenshots, not just passing tests) are also worth doing
 in-sandbox even though the network calls themselves can't be verified there
 — M3's compass widget had a real CSS bug that only a screenshot caught.

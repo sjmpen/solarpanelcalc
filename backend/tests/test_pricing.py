@@ -1,18 +1,19 @@
 import json
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 
-from app.pricing import PricingError, fetch_spot_prices, finnish_day_bounds_utc
+from app.pricing import PricingError, fetch_spot_price_range, fetch_spot_prices, finnish_day_bounds_utc
 
 FIXTURE = Path(__file__).parent / "fixtures" / "elering_response.json"
 
 
 class _StubAsyncClient:
-    def __init__(self, response: httpx.Response):
+    def __init__(self, response: httpx.Response, calls: list[dict] | None = None):
         self._response = response
+        self._calls = calls
 
     async def __aenter__(self) -> "_StubAsyncClient":
         return self
@@ -21,12 +22,14 @@ class _StubAsyncClient:
         return None
 
     async def get(self, url: str, params: dict | None = None, timeout: float | None = None) -> httpx.Response:
+        if self._calls is not None:
+            self._calls.append(params or {})
         return self._response
 
 
-def stub_client(response: httpx.Response):
+def stub_client(response: httpx.Response, calls: list[dict] | None = None):
     def factory(*args: object, **kwargs: object) -> _StubAsyncClient:
-        return _StubAsyncClient(response)
+        return _StubAsyncClient(response, calls)
 
     return factory
 
@@ -77,3 +80,35 @@ async def test_fetch_spot_prices_raises_on_unexpected_shape(monkeypatch: pytest.
 
     with pytest.raises(PricingError, match="Unexpected Elering response shape"):
         await fetch_spot_prices(date(2024, 6, 14))
+
+
+async def test_fetch_spot_price_range_chunks_requests_over_a_year(monkeypatch: pytest.MonkeyPatch):
+    # Elering rejects a single request spanning more than 1 year - a long
+    # range (like a real ~2-year Fingrid export covers) must be split into
+    # multiple requests, none exceeding MAX_REQUEST_RANGE (350 days).
+    payload = json.loads(FIXTURE.read_text())
+    calls: list[dict] = []
+    monkeypatch.setattr("app.pricing.httpx.AsyncClient", stub_client(httpx.Response(200, json=payload), calls))
+
+    start = datetime(2023, 1, 1, tzinfo=UTC)
+    end = start + timedelta(days=1000)  # 1000 / 350 -> 3 chunks: 350 + 350 + 300
+
+    entries = await fetch_spot_price_range(start, end)
+
+    assert len(calls) == 3
+    assert len(entries) == 24 * len(calls)  # 24 fixture entries per page, concatenated
+    assert entries == sorted(entries, key=lambda e: e.timestamp)
+
+
+async def test_fetch_spot_price_range_makes_one_request_within_a_year(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    payload = json.loads(FIXTURE.read_text())
+    calls: list[dict] = []
+    monkeypatch.setattr("app.pricing.httpx.AsyncClient", stub_client(httpx.Response(200, json=payload), calls))
+
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    end = datetime(2024, 6, 1, tzinfo=UTC)
+    await fetch_spot_price_range(start, end)
+
+    assert len(calls) == 1

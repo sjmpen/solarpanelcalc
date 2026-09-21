@@ -12,6 +12,12 @@ HELSINKI_TZ = ZoneInfo("Europe/Helsinki")
 # shown is what the user would actually be billed.
 FINLAND_VAT_MULTIPLIER = 1.255
 
+# Elering rejects a single request spanning more than 1 year ("Maximum
+# period is 1 year" - confirmed against the real API). A conservative
+# 350-day chunk avoids relying on exactly where that boundary falls
+# (leap years, inclusive/exclusive edges).
+MAX_REQUEST_RANGE = timedelta(days=350)
+
 
 class SpotPriceEntry(BaseModel):
     timestamp: datetime  # UTC
@@ -41,7 +47,23 @@ async def fetch_spot_prices(day: date) -> list[SpotPriceEntry]:
 
 
 async def fetch_spot_price_range(start: datetime, end: datetime) -> list[SpotPriceEntry]:
-    """Fetches Finnish day-ahead spot prices for [start, end) UTC, VAT-inclusive (25.5%)."""
+    """Fetches Finnish day-ahead spot prices for [start, end) UTC, VAT-inclusive (25.5%).
+
+    Transparently splits ranges longer than MAX_REQUEST_RANGE into multiple
+    requests and concatenates them - Elering rejects a single request
+    spanning more than 1 year.
+    """
+    entries: list[SpotPriceEntry] = []
+    chunk_start = start
+    while chunk_start < end:
+        chunk_end = min(chunk_start + MAX_REQUEST_RANGE, end)
+        entries.extend(await _fetch_spot_price_page(chunk_start, chunk_end))
+        chunk_start = chunk_end
+
+    return sorted(entries, key=lambda entry: entry.timestamp)
+
+
+async def _fetch_spot_price_page(start: datetime, end: datetime) -> list[SpotPriceEntry]:
     query = {
         "start": start.isoformat().replace("+00:00", "Z"),
         "end": end.isoformat().replace("+00:00", "Z"),
@@ -60,7 +82,7 @@ async def fetch_spot_price_range(start: datetime, end: datetime) -> list[SpotPri
     try:
         payload = response.json()
         fi_entries = payload["data"]["fi"]
-        entries = [
+        return [
             SpotPriceEntry(
                 timestamp=datetime.fromtimestamp(row["timestamp"], tz=UTC),
                 price_cents_per_kwh=row["price"] / 10 * FINLAND_VAT_MULTIPLIER,
@@ -69,8 +91,6 @@ async def fetch_spot_price_range(start: datetime, end: datetime) -> list[SpotPri
         ]
     except (KeyError, TypeError, ValueError) as exc:
         raise PricingError(f"Unexpected Elering response shape: {exc}") from exc
-
-    return sorted(entries, key=lambda entry: entry.timestamp)
 
 
 def _extract_error_message(response: httpx.Response) -> str:
