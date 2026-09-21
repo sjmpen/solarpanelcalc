@@ -12,6 +12,10 @@ and their electricity contract type (spot price vs. fixed price).
 - **Maps**: Leaflet (`react-leaflet`) + OpenStreetMap/Nominatim — no API key
   needed. Address search is submit-based (not type-ahead), to stay within
   Nominatim's usage policy; clicking the map sets a location directly.
+- **Solar production**: PVGIS `PVcalc` API (`re.jrc.ec.europa.eu`, no API
+  key) — monthly + annual kWh estimate from location + system params
+  (peak power, tilt, azimuth, loss %, mounting). See `backend/app/pvgis.py`.
+  Deliberately monthly, not hourly — see M3 notes below.
 
 ## Running the backend
 
@@ -47,9 +51,19 @@ cd frontend && npx tsc -b         # typecheck
 - **M0** (done): repo scaffolding, Fingrid CSV parser, `/consumption/upload`
 - **M1** (done): frontend scaffold (Vite + React + TS) + CSV upload UI
 - **M2** (done): address input — Leaflet map + Nominatim geocoding
-- **M3**: PVGIS integration — solar production estimate for location + system params
+- **M3** (done): PVGIS integration — solar production estimate for location + system params
 - **M4**: electricity price integration — spot price history + fixed-price input
 - **M5**: savings engine (consumption + production + pricing) and results view
+
+**M3 note for M5 (savings engine):** PVGIS `PVcalc` gives monthly averages
+from long-term climate data, not a time series for the user's actual
+2024-2026 consumption period — PVGIS's historical hourly data (`seriescalc`)
+wouldn't calendar-align with that period either. When designing the savings
+math, decide then whether monthly production vs. monthly consumption is
+accurate enough, or whether an hourly pattern-matched approach (PVGIS
+`seriescalc`/`tmy` mapped by month+hour-of-day rather than exact date) is
+worth the added complexity — informed by what M4's pricing data looks like
+too.
 
 ## Fingrid CSV format
 
@@ -71,9 +85,9 @@ local testing instead.
 ## Sandbox note
 
 When developing in a network-restricted sandbox (e.g. Claude Code's remote
-environment), outbound calls to third-party APIs used by later milestones —
-PVGIS (`re.jrc.ec.europa.eu`), Nominatim (`nominatim.openstreetmap.org`),
-and Finnish spot price APIs — may be blocked by the egress proxy. Those
-integrations should be unit-tested against recorded fixtures/mocks there,
-and live-verified locally (or in an environment with open egress) before
-being considered done.
+environment), outbound calls to third-party APIs — PVGIS
+(`re.jrc.ec.europa.eu`), Nominatim (`nominatim.openstreetmap.org`), OSM tile
+servers, and Finnish spot price APIs (M4) — are blocked by the egress proxy
+(confirmed for all of PVGIS/Nominatim/tiles as of M2/M3). Those integrations
+are unit-tested there against recorded fixtures/mocks, and need a live local
+run to confirm real requests/responses before being considered fully done.

@@ -9,7 +9,8 @@ section h2 {
 }
 
 .upload-form,
-.search-form {
+.search-form,
+.solar-form {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -17,7 +18,8 @@ section h2 {
 }
 
 .upload-form label,
-.search-form label {
+.search-form label,
+.solar-form label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -25,17 +27,27 @@ section h2 {
   color: var(--text);
 }
 
-.search-form input[type='text'] {
+.search-form input[type='text'],
+.solar-form input,
+.solar-form select {
   font: inherit;
   padding: 6px 10px;
   border-radius: 6px;
   border: 1px solid var(--border);
+}
+
+.search-form input[type='text'] {
   min-width: 260px;
+}
+
+.solar-form input {
+  width: 120px;
 }
 
 .upload-form button,
 .search-form button,
-.search-results button {
+.search-results button,
+.solar-form button {
   font: inherit;
   padding: 8px 16px;
   border-radius: 6px;
@@ -46,7 +58,8 @@ section h2 {
 }
 
 .upload-form button:disabled,
-.search-form button:disabled {
+.search-form button:disabled,
+.solar-form button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -109,5 +122,23 @@ section h2 {
   margin: 0;
   color: var(--text-h);
   font-weight: 600;
+  text-align: right;
+}
+
+.monthly-production {
+  margin-top: 16px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.monthly-production th,
+.monthly-production td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.monthly-production td:last-child,
+.monthly-production th:last-child {
   text-align: right;
 }
