@@ -17,20 +17,34 @@ and their electricity contract type (spot price vs. fixed price).
 ```bash
 cd backend
 uv sync
-uv run fastapi dev app/main.py
+uv run fastapi dev app/main.py    # serves on :8000
 ```
+
+## Running the frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env              # only needed if the backend isn't on :8000
+npm run dev                       # serves on :5173
+```
+
+The backend allows CORS from `http://localhost:5173` (see `CORSMiddleware`
+in `backend/app/main.py`); the frontend reads the API's base URL from
+`VITE_API_BASE_URL` (defaults to `http://localhost:8000`, see `src/api.ts`).
 
 ## Running tests
 
 ```bash
-cd backend
-uv run pytest
+cd backend && uv run pytest
+cd frontend && npm run test       # vitest
+cd frontend && npx tsc -b         # typecheck
 ```
 
 ## Roadmap
 
 - **M0** (done): repo scaffolding, Fingrid CSV parser, `/consumption/upload`
-- **M1**: frontend scaffold + CSV upload UI
+- **M1** (done): frontend scaffold (Vite + React + TS) + CSV upload UI
 - **M2**: address input — Leaflet map + Nominatim geocoding
 - **M3**: PVGIS integration — solar production estimate for location + system params
 - **M4**: electricity price integration — spot price history + fixed-price input

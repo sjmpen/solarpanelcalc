@@ -1,9 +1,17 @@
 from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.csv_parser import InvalidConsumptionCsv, parse_fingrid_csv, summarize
 from app.models import ConsumptionSummary
 
 app = FastAPI(title="solarpanelcalc")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
