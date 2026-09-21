@@ -8,9 +8,10 @@ and their electricity contract type (spot price vs. fixed price).
 ## Stack
 
 - **Backend**: Python + FastAPI, managed with `uv`, tested with `pytest`.
-- **Frontend**: React + TypeScript via Vite (added in a later milestone).
-- **Maps**: Leaflet + OpenStreetMap/Nominatim — no API key needed (added in
-  a later milestone).
+- **Frontend**: React + TypeScript via Vite.
+- **Maps**: Leaflet (`react-leaflet`) + OpenStreetMap/Nominatim — no API key
+  needed. Address search is submit-based (not type-ahead), to stay within
+  Nominatim's usage policy; clicking the map sets a location directly.
 
 ## Running the backend
 
@@ -45,7 +46,7 @@ cd frontend && npx tsc -b         # typecheck
 
 - **M0** (done): repo scaffolding, Fingrid CSV parser, `/consumption/upload`
 - **M1** (done): frontend scaffold (Vite + React + TS) + CSV upload UI
-- **M2**: address input — Leaflet map + Nominatim geocoding
+- **M2** (done): address input — Leaflet map + Nominatim geocoding
 - **M3**: PVGIS integration — solar production estimate for location + system params
 - **M4**: electricity price integration — spot price history + fixed-price input
 - **M5**: savings engine (consumption + production + pricing) and results view

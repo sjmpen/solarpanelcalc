@@ -1,11 +1,23 @@
-.upload-form {
+section {
+  margin-top: 40px;
+}
+
+section h2 {
+  font-size: 20px;
+  color: var(--text-h);
+  margin: 0 0 8px;
+}
+
+.upload-form,
+.search-form {
   display: flex;
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.upload-form label {
+.upload-form label,
+.search-form label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -13,7 +25,17 @@
   color: var(--text);
 }
 
-.upload-form button {
+.search-form input[type='text'] {
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  min-width: 260px;
+}
+
+.upload-form button,
+.search-form button,
+.search-results button {
   font: inherit;
   padding: 8px 16px;
   border-radius: 6px;
@@ -23,9 +45,38 @@
   cursor: pointer;
 }
 
-.upload-form button:disabled {
+.upload-form button:disabled,
+.search-form button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.search-results {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-results button {
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.map-container {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.selected-location {
+  margin-top: 12px;
+  color: var(--text-h);
 }
 
 .error {

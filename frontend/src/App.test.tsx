@@ -3,6 +3,18 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
+// LocationPicker (rendered by App) uses react-leaflet, which needs real
+// layout/canvas that jsdom doesn't provide — mocked here so these tests
+// stay focused on the upload flow. See LocationPicker.test.tsx for the
+// map/search behavior itself.
+vi.mock('react-leaflet', () => ({
+  MapContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TileLayer: () => null,
+  Marker: () => null,
+  useMapEvents: () => null,
+}))
+vi.mock('./components/leafletIconFix', () => ({}))
+
 const sampleSummary = {
   reading_count: 192,
   start: '2025-01-01T00:00:00Z',
