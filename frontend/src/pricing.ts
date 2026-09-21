@@ -5,7 +5,25 @@ export interface SpotPriceEntry {
   priceCentsPerKwh: number
 }
 
-export type PricingChoice = { type: 'fixed'; priceCentsPerKwh: number } | { type: 'spot' }
+export type PricingChoice =
+  | { type: 'fixed'; priceCentsPerKwh: number; monthlyFeeEur: number }
+  | { type: 'spot'; marginCentsPerKwh: number; monthlyFeeEur: number }
+
+export type TransferPricing =
+  | { type: 'flat'; priceCentsPerKwh: number; monthlyFeeEur: number }
+  | {
+      type: 'day-night'
+      dayPriceCentsPerKwh: number
+      nightPriceCentsPerKwh: number
+      monthlyFeeEur: number
+    }
+  | {
+      type: 'seasonal'
+      winterDayPriceCentsPerKwh: number
+      winterNightPriceCentsPerKwh: number
+      otherPriceCentsPerKwh: number
+      monthlyFeeEur: number
+    }
 
 interface SpotPriceApiResponse {
   date: string

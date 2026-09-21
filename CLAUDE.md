@@ -26,6 +26,15 @@ and their electricity contract type (spot price vs. fixed price).
   already include VAT (no way to check that server-side). See
   `backend/app/pricing.py`, including `finnish_day_bounds_utc` (Finnish
   calendar day → UTC range via `zoneinfo`, DST-aware).
+- **Pricing model** (`frontend/src/pricing.ts`, frontend-only, no backend
+  involvement): `PricingChoice` (fixed or spot) carries a monthly fee, plus
+  a margin (c/kWh) for spot on top of Elering's price. Separately,
+  `TransferPricing` (`components/TransferPricingFields.tsx`, collapsed by
+  default behind a `<details>`) models grid-company transfer pricing (paid
+  separately from the electricity retailer) as one of flat / day-night /
+  seasonal — see that file's assumed day/night and winter boundary
+  definitions (stated as common Finnish DSO approximations, e.g. Elenia's
+  products, not fetched or verified against any live source).
 
 ## Running the backend
 
@@ -84,8 +93,10 @@ just a pattern-match like PVGIS production. `fetch_spot_prices`/
 Finnish calendar day at a time (M4's own scope was a single-day preview,
 not the full ~2-year range) — M5 will need to call it per day across the
 consumption period (or extend it to accept a range) once it knows exactly
-what the savings calc needs. `PricingChoice` (`frontend/src/pricing.ts`) is
-already lifted to `App.tsx` state for M5 to consume, same as `location`.
+what the savings calc needs. `PricingChoice` and `TransferPricing`
+(`frontend/src/pricing.ts`) are both lifted to `App.tsx` state (`pricing`,
+`transferPricing`) for M5 to consume, same as `location` — `transferPricing`
+is `null` until the user opens and fills in the optional transfer section.
 
 ## Fingrid CSV format
 

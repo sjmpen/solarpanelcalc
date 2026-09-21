@@ -8,6 +8,26 @@ section h2 {
   margin: 0 0 8px;
 }
 
+.transfer-pricing summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.transfer-pricing[open] summary {
+  margin-bottom: 16px;
+}
+
+.transfer-pricing .pricing-mode {
+  margin-top: 12px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--text);
+  margin: 4px 0 16px;
+}
+
 .upload-form,
 .search-form,
 .solar-form,

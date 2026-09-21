@@ -24,10 +24,30 @@ describe('PricingSelector', () => {
 
     await user.type(screen.getByLabelText(/price \(c\/kwh/i), '8.5')
 
-    expect(onPricingChange).toHaveBeenLastCalledWith({ type: 'fixed', priceCentsPerKwh: 8.5 })
+    expect(onPricingChange).toHaveBeenLastCalledWith({
+      type: 'fixed',
+      priceCentsPerKwh: 8.5,
+      monthlyFeeEur: 0,
+    })
   })
 
-  it('switches to spot mode, loads prices, and renders the hourly table', async () => {
+  it('includes the monthly fee once entered, for fixed price', async () => {
+    const onPricingChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(<PricingSelector onPricingChange={onPricingChange} />)
+
+    await user.type(screen.getByLabelText(/price \(c\/kwh/i), '8.5')
+    await user.type(screen.getByLabelText(/monthly fee/i), '5')
+
+    expect(onPricingChange).toHaveBeenLastCalledWith({
+      type: 'fixed',
+      priceCentsPerKwh: 8.5,
+      monthlyFeeEur: 5,
+    })
+  })
+
+  it('switches to spot mode, reports margin + monthly fee, loads prices, and shows totals', async () => {
     fetchSpotPricesMock.mockResolvedValue([
       { timestamp: '2024-06-14T12:00:00Z', priceCentsPerKwh: 4.57 },
     ])
@@ -37,12 +57,25 @@ describe('PricingSelector', () => {
     render(<PricingSelector onPricingChange={onPricingChange} />)
 
     await user.click(screen.getByRole('radio', { name: /spot price/i }))
-    expect(onPricingChange).toHaveBeenCalledWith({ type: 'spot' })
+    expect(onPricingChange).toHaveBeenLastCalledWith({
+      type: 'spot',
+      marginCentsPerKwh: 0,
+      monthlyFeeEur: 0,
+    })
     expect(screen.getByText(/25\.5% vat/i)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText(/margin/i), '0.5')
+    await user.type(screen.getByLabelText(/monthly fee/i), '3.9')
+    expect(onPricingChange).toHaveBeenLastCalledWith({
+      type: 'spot',
+      marginCentsPerKwh: 0.5,
+      monthlyFeeEur: 3.9,
+    })
 
     await user.click(screen.getByRole('button', { name: /load prices/i }))
 
-    expect(await screen.findByText('4.57')).toBeInTheDocument()
+    expect(await screen.findByText('4.57')).toBeInTheDocument() // raw spot price
+    expect(screen.getByText('5.07')).toBeInTheDocument() // 4.57 + 0.5 margin
     expect(fetchSpotPricesMock).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
   })
 

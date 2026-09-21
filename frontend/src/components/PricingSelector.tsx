@@ -9,38 +9,75 @@ function formatHour(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function toNumberOrZero(value: string): number {
+  if (!value) return 0
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
 interface PricingSelectorProps {
   onPricingChange: (choice: PricingChoice) => void
+}
+
+interface FieldState {
+  mode: 'fixed' | 'spot'
+  fixedPrice: string
+  margin: string
+  monthlyFee: string
 }
 
 function PricingSelector({ onPricingChange }: PricingSelectorProps) {
   const [mode, setMode] = useState<'fixed' | 'spot'>('fixed')
   const [fixedPrice, setFixedPrice] = useState('')
+  const [margin, setMargin] = useState('')
+  const [monthlyFee, setMonthlyFee] = useState('')
 
   const [date, setDate] = useState(today())
   const [prices, setPrices] = useState<SpotPriceEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  function notifyPricingChange(overrides: Partial<FieldState> = {}) {
+    const state: FieldState = { mode, fixedPrice, margin, monthlyFee, ...overrides }
+    const monthlyFeeEur = toNumberOrZero(state.monthlyFee)
+
+    if (state.mode === 'fixed') {
+      const price = Number(state.fixedPrice)
+      if (state.fixedPrice && !Number.isNaN(price)) {
+        onPricingChange({ type: 'fixed', priceCentsPerKwh: price, monthlyFeeEur })
+      }
+    } else {
+      onPricingChange({
+        type: 'spot',
+        marginCentsPerKwh: toNumberOrZero(state.margin),
+        monthlyFeeEur,
+      })
+    }
+  }
+
   function selectFixed() {
     setMode('fixed')
-    const price = Number(fixedPrice)
-    if (fixedPrice && !Number.isNaN(price)) {
-      onPricingChange({ type: 'fixed', priceCentsPerKwh: price })
-    }
+    notifyPricingChange({ mode: 'fixed' })
   }
 
   function selectSpot() {
     setMode('spot')
-    onPricingChange({ type: 'spot' })
+    notifyPricingChange({ mode: 'spot' })
   }
 
   function handleFixedPriceChange(value: string) {
     setFixedPrice(value)
-    const price = Number(value)
-    if (value && !Number.isNaN(price)) {
-      onPricingChange({ type: 'fixed', priceCentsPerKwh: price })
-    }
+    notifyPricingChange({ fixedPrice: value })
+  }
+
+  function handleMarginChange(value: string) {
+    setMargin(value)
+    notifyPricingChange({ margin: value })
+  }
+
+  function handleMonthlyFeeChange(value: string) {
+    setMonthlyFee(value)
+    notifyPricingChange({ monthlyFee: value })
   }
 
   async function handleLoadPrices(event: React.FormEvent) {
@@ -58,6 +95,8 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
       setLoading(false)
     }
   }
+
+  const marginValue = toNumberOrZero(margin)
 
   return (
     <section>
@@ -89,6 +128,32 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
       )}
 
       {mode === 'spot' && (
+        <label className="fixed-price-field" htmlFor="spot-margin">
+          Margin (c/kWh)
+          <input
+            id="spot-margin"
+            type="number"
+            min="0"
+            step="0.01"
+            value={margin}
+            onChange={(event) => handleMarginChange(event.target.value)}
+          />
+        </label>
+      )}
+
+      <label className="fixed-price-field" htmlFor="monthly-fee">
+        Monthly fee (€/month)
+        <input
+          id="monthly-fee"
+          type="number"
+          min="0"
+          step="0.01"
+          value={monthlyFee}
+          onChange={(event) => handleMonthlyFeeChange(event.target.value)}
+        />
+      </label>
+
+      {mode === 'spot' && (
         <>
           <p>
             Preview a day's hourly spot prices. Prices include 25.5% VAT.
@@ -115,7 +180,8 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
               <thead>
                 <tr>
                   <th>Hour</th>
-                  <th>c/kWh</th>
+                  <th>Spot (c/kWh)</th>
+                  <th>Total (c/kWh)</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,6 +189,7 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
                   <tr key={entry.timestamp}>
                     <td>{formatHour(entry.timestamp)}</td>
                     <td>{entry.priceCentsPerKwh.toFixed(2)}</td>
+                    <td>{(entry.priceCentsPerKwh + marginValue).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
