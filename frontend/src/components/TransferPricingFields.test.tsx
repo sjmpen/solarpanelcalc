@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 import TransferPricingFields from './TransferPricingFields'
 
 describe('TransferPricingFields', () => {
-  it('starts collapsed', () => {
+  it('renders immediately, defaulted to the flat rate type', () => {
     render(<TransferPricingFields onChange={vi.fn()} />)
 
-    const details = screen.getByText(/add transfer pricing/i).closest('details')
-    expect(details).not.toHaveAttribute('open')
+    expect(screen.getByRole('radio', { name: /flat rate/i })).toBeChecked()
+    expect(screen.getByLabelText(/^price \(c\/kwh\)/i)).toBeInTheDocument()
   })
 
   it('stays null until the flat price is filled in, then reports it', async () => {
@@ -16,17 +16,12 @@ describe('TransferPricingFields', () => {
     const user = userEvent.setup()
 
     render(<TransferPricingFields onChange={onChange} />)
-    await user.click(screen.getByText(/add transfer pricing/i))
 
     expect(onChange).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'flat' }))
 
     await user.type(screen.getByLabelText(/^price \(c\/kwh\)/i), '3.5')
 
-    expect(onChange).toHaveBeenLastCalledWith({
-      type: 'flat',
-      priceCentsPerKwh: 3.5,
-      monthlyFeeEur: 0,
-    })
+    expect(onChange).toHaveBeenLastCalledWith({ type: 'flat', priceCentsPerKwh: 3.5 })
   })
 
   it('requires both day and night prices before reporting a day-night contract', async () => {
@@ -34,7 +29,6 @@ describe('TransferPricingFields', () => {
     const user = userEvent.setup()
 
     render(<TransferPricingFields onChange={onChange} />)
-    await user.click(screen.getByText(/add transfer pricing/i))
     await user.click(screen.getByRole('radio', { name: /day \/ night/i }))
 
     await user.type(screen.getByLabelText(/day price/i), '2')
@@ -45,7 +39,6 @@ describe('TransferPricingFields', () => {
       type: 'day-night',
       dayPriceCentsPerKwh: 2,
       nightPriceCentsPerKwh: 1,
-      monthlyFeeEur: 0,
     })
   })
 
@@ -54,7 +47,6 @@ describe('TransferPricingFields', () => {
     const user = userEvent.setup()
 
     render(<TransferPricingFields onChange={onChange} />)
-    await user.click(screen.getByText(/add transfer pricing/i))
     await user.click(screen.getByRole('radio', { name: /seasonal/i }))
 
     await user.type(screen.getByLabelText(/winter day price/i), '4')
@@ -62,14 +54,12 @@ describe('TransferPricingFields', () => {
     expect(onChange).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'seasonal' }))
 
     await user.type(screen.getByLabelText(/rest of year price/i), '1.5')
-    await user.type(screen.getByLabelText(/monthly fee/i), '4.9')
 
     expect(onChange).toHaveBeenLastCalledWith({
       type: 'seasonal',
       winterDayPriceCentsPerKwh: 4,
       winterNightPriceCentsPerKwh: 2,
       otherPriceCentsPerKwh: 1.5,
-      monthlyFeeEur: 4.9,
     })
   })
 })

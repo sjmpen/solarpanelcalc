@@ -120,7 +120,10 @@ def test_spot_prices_rejects_invalid_date():
     assert response.status_code == 422
 
 
-def _savings_request(energy_pricing: dict, transfer_pricing: dict | None = None) -> str:
+FLAT_TRANSFER = {"type": "flat", "price_cents_per_kwh": 3.0}
+
+
+def _savings_request(energy_pricing: dict, transfer_pricing: dict = FLAT_TRANSFER) -> str:
     return json.dumps(
         {
             "lat": 60.17,
@@ -139,11 +142,7 @@ def test_savings_calculate_fixed_price_end_to_end():
         response = client.post(
             "/savings/calculate",
             files={"file": ("sample_consumption.csv", f, "text/csv")},
-            data={
-                "request": _savings_request(
-                    {"type": "fixed", "price_cents_per_kwh": 10.0, "monthly_fee_eur": 5.0}
-                )
-            },
+            data={"request": _savings_request({"type": "fixed", "price_cents_per_kwh": 10.0})},
         )
 
     assert response.status_code == 200
@@ -163,6 +162,25 @@ def test_savings_calculate_rejects_bad_csv():
         files={"file": ("bad.csv", b"not,a,fingrid,file\n1,2,3,4\n", "text/csv")},
         data={"request": _savings_request({"type": "fixed", "price_cents_per_kwh": 10.0})},
     )
+    assert response.status_code == 422
+
+
+def test_savings_calculate_rejects_missing_transfer_pricing():
+    with FIXTURE.open("rb") as f:
+        response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": json.dumps(
+                    {
+                        "lat": 60.17,
+                        "lon": 24.94,
+                        "monthly_production": [{"month": 1, "kwh": 150.0}],
+                        "energy_pricing": {"type": "fixed", "price_cents_per_kwh": 10.0},
+                    }
+                )
+            },
+        )
     assert response.status_code == 422
 
 
@@ -196,11 +214,7 @@ def test_savings_calculate_spot_price_uses_range_fetch(monkeypatch: pytest.Monke
         response = client.post(
             "/savings/calculate",
             files={"file": ("sample_consumption.csv", f, "text/csv")},
-            data={
-                "request": _savings_request(
-                    {"type": "spot", "margin_cents_per_kwh": 0.5, "monthly_fee_eur": 0}
-                )
-            },
+            data={"request": _savings_request({"type": "spot", "margin_cents_per_kwh": 0.5})},
         )
 
     assert response.status_code == 200

@@ -23,14 +23,12 @@ interface FieldState {
   mode: 'fixed' | 'spot'
   fixedPrice: string
   margin: string
-  monthlyFee: string
 }
 
 function PricingSelector({ onPricingChange }: PricingSelectorProps) {
   const [mode, setMode] = useState<'fixed' | 'spot'>('fixed')
   const [fixedPrice, setFixedPrice] = useState('')
   const [margin, setMargin] = useState('')
-  const [monthlyFee, setMonthlyFee] = useState('')
 
   const [date, setDate] = useState(today())
   const [prices, setPrices] = useState<SpotPriceEntry[] | null>(null)
@@ -38,19 +36,17 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
   const [loading, setLoading] = useState(false)
 
   function notifyPricingChange(overrides: Partial<FieldState> = {}) {
-    const state: FieldState = { mode, fixedPrice, margin, monthlyFee, ...overrides }
-    const monthlyFeeEur = toNumberOrZero(state.monthlyFee)
+    const state: FieldState = { mode, fixedPrice, margin, ...overrides }
 
     if (state.mode === 'fixed') {
       const price = Number(state.fixedPrice)
       if (state.fixedPrice && !Number.isNaN(price)) {
-        onPricingChange({ type: 'fixed', priceCentsPerKwh: price, monthlyFeeEur })
+        onPricingChange({ type: 'fixed', priceCentsPerKwh: price })
       }
     } else {
       onPricingChange({
         type: 'spot',
         marginCentsPerKwh: toNumberOrZero(state.margin),
-        monthlyFeeEur,
       })
     }
   }
@@ -73,11 +69,6 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
   function handleMarginChange(value: string) {
     setMargin(value)
     notifyPricingChange({ margin: value })
-  }
-
-  function handleMonthlyFeeChange(value: string) {
-    setMonthlyFee(value)
-    notifyPricingChange({ monthlyFee: value })
   }
 
   async function handleLoadPrices(event: React.FormEvent) {
@@ -140,18 +131,6 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
           />
         </label>
       )}
-
-      <label className="fixed-price-field" htmlFor="monthly-fee">
-        Monthly fee (€/month)
-        <input
-          id="monthly-fee"
-          type="number"
-          min="0"
-          step="0.01"
-          value={monthlyFee}
-          onChange={(event) => handleMonthlyFeeChange(event.target.value)}
-        />
-      </label>
 
       {mode === 'spot' && (
         <>

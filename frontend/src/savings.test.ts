@@ -44,8 +44,8 @@ describe('calculateSavings', () => {
       file,
       { lat: 60.17, lon: 24.94 },
       PRODUCTION_ESTIMATE,
-      { type: 'fixed', priceCentsPerKwh: 10, monthlyFeeEur: 5 },
-      { type: 'flat', priceCentsPerKwh: 3.5, monthlyFeeEur: 6 },
+      { type: 'fixed', priceCentsPerKwh: 10 },
+      { type: 'flat', priceCentsPerKwh: 3.5 },
     )
 
     expect(result).toEqual({
@@ -80,12 +80,12 @@ describe('calculateSavings', () => {
       lat: 60.17,
       lon: 24.94,
       monthly_production: [{ month: 1, kwh: 31.62 }],
-      energy_pricing: { type: 'fixed', price_cents_per_kwh: 10, monthly_fee_eur: 5 },
-      transfer_pricing: { type: 'flat', price_cents_per_kwh: 3.5, monthly_fee_eur: 6 },
+      energy_pricing: { type: 'fixed', price_cents_per_kwh: 10 },
+      transfer_pricing: { type: 'flat', price_cents_per_kwh: 3.5 },
     })
   })
 
-  it('sends a null transfer_pricing when none is set', async () => {
+  it('maps spot pricing and day-night transfer pricing to their API shapes', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -105,18 +105,18 @@ describe('calculateSavings', () => {
       csvFile(),
       { lat: 60.17, lon: 24.94 },
       PRODUCTION_ESTIMATE,
-      { type: 'spot', marginCentsPerKwh: 0.5, monthlyFeeEur: 0 },
-      null,
+      { type: 'spot', marginCentsPerKwh: 0.5 },
+      { type: 'day-night', dayPriceCentsPerKwh: 4, nightPriceCentsPerKwh: 2 },
     )
 
     const [, options] = fetchMock.mock.calls[0]
     const formData = options.body as FormData
     const request = JSON.parse(formData.get('request') as string)
-    expect(request.transfer_pricing).toBeNull()
-    expect(request.energy_pricing).toEqual({
-      type: 'spot',
-      margin_cents_per_kwh: 0.5,
-      monthly_fee_eur: 0,
+    expect(request.energy_pricing).toEqual({ type: 'spot', margin_cents_per_kwh: 0.5 })
+    expect(request.transfer_pricing).toEqual({
+      type: 'day-night',
+      day_price_cents_per_kwh: 4,
+      night_price_cents_per_kwh: 2,
     })
   })
 
@@ -135,8 +135,8 @@ describe('calculateSavings', () => {
         csvFile(),
         { lat: 60.17, lon: 24.94 },
         PRODUCTION_ESTIMATE,
-        { type: 'spot', marginCentsPerKwh: 0, monthlyFeeEur: 0 },
-        null,
+        { type: 'spot', marginCentsPerKwh: 0 },
+        { type: 'flat', priceCentsPerKwh: 0 },
       ),
     ).rejects.toThrow('Invalid date range')
   })

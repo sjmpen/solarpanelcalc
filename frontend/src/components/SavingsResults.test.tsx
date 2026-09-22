@@ -13,14 +13,15 @@ const calculateSavingsMock = vi.mocked(calculateSavings)
 const FILE = new File(['irrelevant'], 'consumption.csv', { type: 'text/csv' })
 const LOCATION = { lat: 60.17, lon: 24.94 }
 const PRODUCTION = { annualKwh: 1732.47, monthly: [{ month: 1, kwh: 31.62 }] }
-const PRICING = { type: 'fixed' as const, priceCentsPerKwh: 10, monthlyFeeEur: 5 }
+const PRICING = { type: 'fixed' as const, priceCentsPerKwh: 10 }
+const TRANSFER = { type: 'flat' as const, priceCentsPerKwh: 3.0 }
 
 const READY_PROPS = {
   file: FILE,
   location: LOCATION,
   productionEstimate: PRODUCTION,
   pricing: PRICING,
-  transferPricing: null,
+  transferPricing: TRANSFER,
 }
 
 describe('SavingsResults', () => {
@@ -44,6 +45,7 @@ describe('SavingsResults', () => {
     expect(text).toMatch(/location/i)
     expect(text).toMatch(/solar production estimate/i)
     expect(text).toMatch(/electricity contract/i)
+    expect(text).toMatch(/transfer pricing/i)
     expect(screen.queryByRole('button', { name: /calculate savings/i })).not.toBeInTheDocument()
   })
 
@@ -54,7 +56,7 @@ describe('SavingsResults', () => {
         location={LOCATION}
         productionEstimate={null}
         pricing={null}
-        transferPricing={null}
+        transferPricing={TRANSFER}
       />,
     )
 
@@ -62,6 +64,7 @@ describe('SavingsResults', () => {
     expect(text).toMatch(/solar production estimate/i)
     expect(text).toMatch(/electricity contract/i)
     expect(text).not.toMatch(/consumption csv/i)
+    expect(text).not.toMatch(/transfer pricing/i)
   })
 
   it('calculates and renders the results once every prerequisite is met', async () => {
@@ -97,7 +100,7 @@ describe('SavingsResults', () => {
     expect(screen.getByText('Exported (not priced)')).toBeInTheDocument()
     expect(screen.getByText(/simplified estimate/i)).toBeInTheDocument()
 
-    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, null)
+    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, TRANSFER)
   })
 
   it('shows the backend error message when the calculation fails', async () => {

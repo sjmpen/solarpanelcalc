@@ -71,7 +71,7 @@ class SavingsCalculationRequest(BaseModel):
     lon: float
     monthly_production: list[MonthlyProductionInput]
     energy_pricing: EnergyPricingInput
-    transfer_pricing: TransferPricingInput | None = None
+    transfer_pricing: TransferPricingInput
 
 
 @app.post("/savings/calculate", response_model=SavingsResult)

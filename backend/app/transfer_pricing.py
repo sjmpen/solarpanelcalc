@@ -24,7 +24,6 @@ class TransferPricingInput(BaseModel):
     winter_day_price_cents_per_kwh: float | None = None
     winter_night_price_cents_per_kwh: float | None = None
     other_price_cents_per_kwh: float | None = None
-    monthly_fee_eur: float = 0
 
 
 def transfer_price_cents_per_kwh(timestamp_utc: datetime, transfer: TransferPricingInput) -> float:

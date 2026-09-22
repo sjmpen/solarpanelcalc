@@ -15,7 +15,6 @@ class EnergyPricingInput(BaseModel):
     type: Literal["fixed", "spot"]
     price_cents_per_kwh: float | None = None  # fixed
     margin_cents_per_kwh: float | None = None  # spot, on top of Elering's price
-    monthly_fee_eur: float = 0
 
 
 class MonthlyProductionInput(BaseModel):
@@ -55,7 +54,7 @@ def calculate_savings(
     lon: float,
     monthly_production: list[MonthlyProductionInput],
     energy_pricing: EnergyPricingInput,
-    transfer_pricing: TransferPricingInput | None,
+    transfer_pricing: TransferPricingInput,
     spot_prices: list[SpotPriceEntry] | None,
 ) -> SavingsResult:
     """Combines consumption, a synthesized hourly production curve, and pricing
@@ -121,9 +120,7 @@ def calculate_savings(
         exported = max(production - consumption, 0.0)
         grid_import = consumption - self_consumed
 
-        transfer_price = (
-            transfer_price_cents_per_kwh(hour, transfer_pricing) if transfer_pricing else 0.0
-        )
+        transfer_price = transfer_price_cents_per_kwh(hour, transfer_pricing)
         price_per_kwh_eur = (energy_price + transfer_price) / 100
 
         hour_baseline_cost = consumption * price_per_kwh_eur
@@ -143,15 +140,6 @@ def calculate_savings(
         acc["exported_kwh"] += exported
         acc["baseline_cost_eur"] += hour_baseline_cost
         acc["with_solar_cost_eur"] += hour_with_solar_cost
-
-    monthly_fee_eur = energy_pricing.monthly_fee_eur + (
-        transfer_pricing.monthly_fee_eur if transfer_pricing else 0.0
-    )
-    baseline_cost_eur += monthly_fee_eur * len(monthly_acc)
-    with_solar_cost_eur += monthly_fee_eur * len(monthly_acc)
-    for acc in monthly_acc.values():
-        acc["baseline_cost_eur"] += monthly_fee_eur
-        acc["with_solar_cost_eur"] += monthly_fee_eur
 
     self_consumption_rate = total_self_consumed / total_production if total_production > 0 else 0.0
 

@@ -50,24 +50,19 @@ function energyPricingToApi(pricing: PricingChoice) {
     return {
       type: 'fixed',
       price_cents_per_kwh: pricing.priceCentsPerKwh,
-      monthly_fee_eur: pricing.monthlyFeeEur,
     }
   }
   return {
     type: 'spot',
     margin_cents_per_kwh: pricing.marginCentsPerKwh,
-    monthly_fee_eur: pricing.monthlyFeeEur,
   }
 }
 
-function transferPricingToApi(transfer: TransferPricing | null) {
-  if (!transfer) return null
-
+function transferPricingToApi(transfer: TransferPricing) {
   if (transfer.type === 'flat') {
     return {
       type: 'flat',
       price_cents_per_kwh: transfer.priceCentsPerKwh,
-      monthly_fee_eur: transfer.monthlyFeeEur,
     }
   }
   if (transfer.type === 'day-night') {
@@ -75,7 +70,6 @@ function transferPricingToApi(transfer: TransferPricing | null) {
       type: 'day-night',
       day_price_cents_per_kwh: transfer.dayPriceCentsPerKwh,
       night_price_cents_per_kwh: transfer.nightPriceCentsPerKwh,
-      monthly_fee_eur: transfer.monthlyFeeEur,
     }
   }
   return {
@@ -83,7 +77,6 @@ function transferPricingToApi(transfer: TransferPricing | null) {
     winter_day_price_cents_per_kwh: transfer.winterDayPriceCentsPerKwh,
     winter_night_price_cents_per_kwh: transfer.winterNightPriceCentsPerKwh,
     other_price_cents_per_kwh: transfer.otherPriceCentsPerKwh,
-    monthly_fee_eur: transfer.monthlyFeeEur,
   }
 }
 
@@ -92,7 +85,7 @@ export async function calculateSavings(
   location: { lat: number; lon: number },
   productionEstimate: SolarProductionEstimate,
   pricing: PricingChoice,
-  transferPricing: TransferPricing | null,
+  transferPricing: TransferPricing,
 ): Promise<SavingsResult> {
   const requestBody = {
     lat: location.lat,

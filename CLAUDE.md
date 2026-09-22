@@ -27,16 +27,19 @@ and their electricity contract type (spot price vs. fixed price).
   `backend/app/pricing.py`, including `finnish_day_bounds_utc` (Finnish
   calendar day → UTC range via `zoneinfo`, DST-aware).
 - **Pricing model** (`frontend/src/pricing.ts`, frontend-only, no backend
-  involvement): `PricingChoice` (fixed or spot) carries a monthly fee, plus
-  a margin (c/kWh) for spot on top of Elering's price. Separately,
-  `TransferPricing` (`components/TransferPricingFields.tsx`, collapsed by
-  default behind a `<details>`) models grid-company transfer pricing (paid
-  separately from the electricity retailer) as one of flat / day-night /
-  seasonal — see that file's assumed day/night and winter boundary
-  definitions (stated as common Finnish DSO approximations, e.g. Elenia's
-  products, not fetched or verified against any live source). The same
-  boundaries are re-implemented backend-side in `backend/app/transfer_pricing.py`
-  for the savings calculation.
+  involvement): `PricingChoice` (fixed or spot) carries a margin (c/kWh) for
+  spot on top of Elering's price. Separately, `TransferPricing`
+  (`components/TransferPricingFields.tsx`, always visible — both energy and
+  transfer pricing are required, since the savings calc needs both) models
+  grid-company transfer pricing (paid separately from the electricity
+  retailer) as one of flat / day-night / seasonal — see that file's assumed
+  day/night and winter boundary definitions (stated as common Finnish DSO
+  approximations, e.g. Elenia's products, not fetched or verified against
+  any live source). The same boundaries are re-implemented backend-side in
+  `backend/app/transfer_pricing.py` for the savings calculation. No monthly
+  fees anywhere in the model — they'd cancel out identically in both the
+  baseline and with-solar cost, so they don't affect `savings_eur` at all;
+  removed rather than kept as dead weight on the form.
 - **Savings engine** (`backend/app/savings.py`, `POST /savings/calculate`):
   combines consumption + a synthesized hourly production curve + pricing
   into a savings estimate. See "How the savings engine works" below.
@@ -109,9 +112,10 @@ brings them to a common hourly resolution:
    Fingrid export needs 2-3 chunked requests) — plus margin; or fixed) plus
    transfer price
    (`backend/app/transfer_pricing.py`, mirrors the frontend's boundaries).
-4. Monthly fees (energy + transfer) are added identically to both totals —
-   they cancel out in `savings_eur` but make the two absolute totals
-   meaningful on their own.
+   Both energy and transfer pricing are required inputs (`EnergyPricingInput`,
+   `TransferPricingInput` — no `| None`) — there's no monthly fee anywhere
+   in the model (would cancel out in `savings_eur` identically either way,
+   so it was removed rather than kept as a no-op field on the form).
 
 **The frontend sends its already-fetched PVGIS monthly estimate** rather
 than having this endpoint re-call PVGIS — so **fixed-price mode needs zero

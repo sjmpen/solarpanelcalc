@@ -23,6 +23,7 @@ function missingPrerequisites(props: SavingsResultsProps): string[] {
   if (!props.location) missing.push('a location')
   if (!props.productionEstimate) missing.push('a solar production estimate')
   if (!props.pricing) missing.push('an electricity contract')
+  if (!props.transferPricing) missing.push('transfer pricing')
   return missing
 }
 
@@ -130,7 +131,7 @@ function SavingsResults({ file, location, productionEstimate, pricing, transferP
   const ready = missing.length === 0
 
   async function handleCalculate() {
-    if (!file || !location || !productionEstimate || !pricing) return
+    if (!file || !location || !productionEstimate || !pricing || !transferPricing) return
 
     setLoading(true)
     setError(null)

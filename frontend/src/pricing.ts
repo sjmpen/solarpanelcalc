@@ -6,23 +6,21 @@ export interface SpotPriceEntry {
 }
 
 export type PricingChoice =
-  | { type: 'fixed'; priceCentsPerKwh: number; monthlyFeeEur: number }
-  | { type: 'spot'; marginCentsPerKwh: number; monthlyFeeEur: number }
+  | { type: 'fixed'; priceCentsPerKwh: number }
+  | { type: 'spot'; marginCentsPerKwh: number }
 
 export type TransferPricing =
-  | { type: 'flat'; priceCentsPerKwh: number; monthlyFeeEur: number }
+  | { type: 'flat'; priceCentsPerKwh: number }
   | {
       type: 'day-night'
       dayPriceCentsPerKwh: number
       nightPriceCentsPerKwh: number
-      monthlyFeeEur: number
     }
   | {
       type: 'seasonal'
       winterDayPriceCentsPerKwh: number
       winterNightPriceCentsPerKwh: number
       otherPriceCentsPerKwh: number
-      monthlyFeeEur: number
     }
 
 interface SpotPriceApiResponse {
