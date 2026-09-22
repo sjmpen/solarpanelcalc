@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "data": {
+    "fi": [
+      { "timestamp": 1718316000, "price": 45.67 },
+      { "timestamp": 1718319600, "price": 42.1 },
+      { "timestamp": 1718323200, "price": 38.5 },
+      { "timestamp": 1718326800, "price": 35.2 },
+      { "timestamp": 1718330400, "price": 33.9 },
+      { "timestamp": 1718334000, "price": 34.8 },
+      { "timestamp": 1718337600, "price": 40.2 },
+      { "timestamp": 1718341200, "price": 55.6 },
+      { "timestamp": 1718344800, "price": 62.3 },
+      { "timestamp": 1718348400, "price": 58.1 },
+      { "timestamp": 1718352000, "price": 50.4 },
+      { "timestamp": 1718355600, "price": 44.7 },
+      { "timestamp": 1718359200, "price": 39.9 },
+      { "timestamp": 1718362800, "price": 36.5 },
+      { "timestamp": 1718366400, "price": 35.1 },
+      { "timestamp": 1718370000, "price": 38.8 },
+      { "timestamp": 1718373600, "price": 47.3 },
+      { "timestamp": 1718377200, "price": 68.9 },
+      { "timestamp": 1718380800, "price": 89.2 },
+      { "timestamp": 1718384400, "price": 95.6 },
+      { "timestamp": 1718388000, "price": 78.4 },
+      { "timestamp": 1718391600, "price": 61.2 },
+      { "timestamp": 1718395200, "price": 50.8 },
+      { "timestamp": 1718398800, "price": 46.3 }
+    ],
+    "ee": [
+      { "timestamp": 1718316000, "price": 40.1 },
+      { "timestamp": 1718319600, "price": 38.2 }
+    ]
+  }
+}

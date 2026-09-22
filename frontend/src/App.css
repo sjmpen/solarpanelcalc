@@ -1,0 +1,292 @@
+section {
+  margin-top: 40px;
+}
+
+section h2 {
+  font-size: 20px;
+  color: var(--text-h);
+  margin: 0 0 8px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--text);
+  margin: 4px 0 16px;
+}
+
+.upload-form,
+.search-form,
+.solar-form,
+.spot-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.upload-form label,
+.search-form label,
+.solar-form label,
+.spot-form label,
+.fixed-price-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.search-form input[type='text'],
+.solar-form input,
+.solar-form select,
+.spot-form input,
+.fixed-price-field input {
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.fixed-price-field input {
+  width: 120px;
+}
+
+.search-form input[type='text'] {
+  min-width: 260px;
+}
+
+.solar-form input {
+  width: 120px;
+}
+
+.compass-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.compass {
+  position: relative;
+}
+
+.compass-ring {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.compass-arrow {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.compass-arrow-head,
+.compass-center {
+  fill: var(--accent);
+}
+
+.compass .compass-point {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: 600 12px/1 var(--sans);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.compass .compass-point.selected {
+  background: var(--text-h);
+  color: var(--bg);
+  border-color: var(--text-h);
+}
+
+.compass-label {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.upload-form button,
+.search-form button,
+.search-results button,
+.solar-form button,
+.spot-form button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--text-h);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.upload-form button:disabled,
+.search-form button:disabled,
+.solar-form button:disabled,
+.spot-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pricing-mode {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.pricing-mode label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.search-results {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-results button {
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.map-container {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.selected-location {
+  margin-top: 12px;
+  color: var(--text-h);
+}
+
+.error {
+  margin-top: 20px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--error-bg);
+  color: var(--error);
+}
+
+.summary {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.summary dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.summary dt {
+  color: var(--text);
+}
+
+.summary dd {
+  margin: 0;
+  color: var(--text-h);
+  font-weight: 600;
+  text-align: right;
+}
+
+.monthly-production,
+.spot-prices {
+  margin-top: 16px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.monthly-production th,
+.monthly-production td,
+.spot-prices th,
+.spot-prices td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.monthly-production td:last-child,
+.monthly-production th:last-child,
+.spot-prices td:last-child,
+.spot-prices th:last-child {
+  text-align: right;
+}
+
+.calculate-button {
+  font: inherit;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.calculate-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.savings-headline {
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.savings-headline strong {
+  font-size: 24px;
+}
+
+.chart-scroll {
+  overflow-x: auto;
+  margin-top: 24px;
+}
+
+.chart-gridline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: var(--text);
+  font-size: 11px;
+}
+
+.chart-bar {
+  fill: var(--accent);
+  cursor: pointer;
+}
+
+.chart-bar-hovered {
+  fill: var(--text-h);
+}
+
+.chart-tooltip {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text-h);
+}
