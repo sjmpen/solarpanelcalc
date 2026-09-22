@@ -30,6 +30,25 @@ and their electricity contract type (spot price vs. fixed price).
   already include VAT (no way to check that server-side). See
   `backend/app/pricing.py`, including `finnish_day_bounds_utc` (Finnish
   calendar day → UTC range via `zoneinfo`, DST-aware).
+- **Local spot-price cache** (`backend/app/spot_price_cache.py`): a settled
+  (fully past) Finnish day's spot price never changes once published, so
+  `fetch_spot_price_range` (and therefore `fetch_spot_prices`, the
+  `/pricing/spot` preview, and `/savings/calculate` in spot mode) splits any
+  requested range at "the start of today, Finnish local time." Everything
+  before that is cached in a local SQLite DB
+  (`backend/data/spot_price_cache.sqlite3`, stdlib `sqlite3`, no new
+  dependency — same gitignored directory as the user's real consumption
+  CSV, never committed); everything from today onward is always fetched
+  fresh and never cached, since it can still be provisional. A recalculation
+  with the same date range (e.g. tweaking system params and re-running
+  `/savings/calculate`) hits the cache instead of re-fetching the whole
+  consumption period from Elering every time. If the settled portion isn't
+  *fully* cached (even one missing hour), the whole settled range is
+  refetched and overwritten — no fine-grained gap-filling, since that would
+  be overkill for a personal-use tool. Cached prices are VAT-adjusted at
+  fetch time using whatever `FINLAND_VAT_MULTIPLIER` is current then, same
+  as the uncached behavior — the cache just locks in that snapshot, so a
+  future VAT change wouldn't retroactively update already-cached rows.
 - **Pricing model** (`frontend/src/pricing.ts`, frontend-only, no backend
   involvement): `PricingChoice` (fixed or spot) carries a margin (c/kWh) for
   spot on top of Elering's price. Separately, `TransferPricing`

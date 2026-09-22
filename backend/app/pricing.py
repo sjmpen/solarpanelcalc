@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 import httpx
 from pydantic import BaseModel
 
+from app.spot_price_cache import get_cached_range, store_entries
+
 ELERING_PRICE_URL = "https://dashboard.elering.ee/api/nps/price"
 HELSINKI_TZ = ZoneInfo("Europe/Helsinki")
 
@@ -46,13 +48,47 @@ async def fetch_spot_prices(day: date) -> list[SpotPriceEntry]:
     return await fetch_spot_price_range(start, end)
 
 
+def _current_utc_time() -> datetime:
+    return datetime.now(UTC)
+
+
 async def fetch_spot_price_range(start: datetime, end: datetime) -> list[SpotPriceEntry]:
     """Fetches Finnish day-ahead spot prices for [start, end) UTC, VAT-inclusive (25.5%).
 
     Transparently splits ranges longer than MAX_REQUEST_RANGE into multiple
     requests and concatenates them - Elering rejects a single request
     spanning more than 1 year.
+
+    The portion of the range before "today" (Finnish local time) is settled
+    - it never changes once published - so it's cached locally after the
+    first fetch. The portion from today onward is always fetched fresh and
+    never cached, since it can still be provisional. Cached prices are
+    VAT-adjusted at fetch time using whatever FINLAND_VAT_MULTIPLIER is
+    current then, same as the uncached behavior - just persisted.
     """
+    today_start_utc, _ = finnish_day_bounds_utc(_current_utc_time().astimezone(HELSINKI_TZ).date())
+    settled_end = min(end, today_start_utc)
+
+    entries: list[SpotPriceEntry] = []
+
+    if settled_end > start:
+        cached = get_cached_range(start, settled_end)
+        if cached is not None:
+            entries += [
+                SpotPriceEntry(timestamp=ts, price_cents_per_kwh=price) for ts, price in cached
+            ]
+        else:
+            fetched = await _fetch_spot_price_pages(start, settled_end)
+            store_entries([(entry.timestamp, entry.price_cents_per_kwh) for entry in fetched])
+            entries += fetched
+
+    if end > settled_end:
+        entries += await _fetch_spot_price_pages(max(start, settled_end), end)
+
+    return sorted(entries, key=lambda entry: entry.timestamp)
+
+
+async def _fetch_spot_price_pages(start: datetime, end: datetime) -> list[SpotPriceEntry]:
     entries: list[SpotPriceEntry] = []
     chunk_start = start
     while chunk_start < end:
@@ -60,7 +96,7 @@ async def fetch_spot_price_range(start: datetime, end: datetime) -> list[SpotPri
         entries.extend(await _fetch_spot_price_page(chunk_start, chunk_end))
         chunk_start = chunk_end
 
-    return sorted(entries, key=lambda entry: entry.timestamp)
+    return entries
 
 
 async def _fetch_spot_price_page(start: datetime, end: datetime) -> list[SpotPriceEntry]:

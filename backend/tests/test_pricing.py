@@ -5,9 +5,15 @@ from pathlib import Path
 import httpx
 import pytest
 
+from app import pricing, spot_price_cache
 from app.pricing import PricingError, fetch_spot_price_range, fetch_spot_prices, finnish_day_bounds_utc
 
 FIXTURE = Path(__file__).parent / "fixtures" / "elering_response.json"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(spot_price_cache, "CACHE_DB_PATH", tmp_path / "test_cache.sqlite3")
 
 
 class _StubAsyncClient:
@@ -30,6 +36,42 @@ class _StubAsyncClient:
 def stub_client(response: httpx.Response, calls: list[dict] | None = None):
     def factory(*args: object, **kwargs: object) -> _StubAsyncClient:
         return _StubAsyncClient(response, calls)
+
+    return factory
+
+
+class _DynamicStubAsyncClient:
+    """Unlike _StubAsyncClient, generates one hourly entry per requested hour
+    instead of returning a fixed canned payload - needed for the caching
+    tests below, which check exact hour-for-hour cache completeness rather
+    than just entry counts."""
+
+    def __init__(self, calls: list[dict] | None):
+        self._calls = calls
+
+    async def __aenter__(self) -> "_DynamicStubAsyncClient":
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        return None
+
+    async def get(self, url: str, params: dict | None = None, timeout: float | None = None) -> httpx.Response:
+        if self._calls is not None:
+            self._calls.append(params or {})
+
+        start = datetime.fromisoformat(params["start"].replace("Z", "+00:00"))
+        end = datetime.fromisoformat(params["end"].replace("Z", "+00:00"))
+        hours = round((end - start).total_seconds() / 3600)
+        fi_entries = [
+            {"timestamp": int((start + timedelta(hours=h)).timestamp()), "price": 40.0 + h}
+            for h in range(hours)
+        ]
+        return httpx.Response(200, json={"data": {"fi": fi_entries}})
+
+
+def dynamic_stub_client(calls: list[dict] | None = None):
+    def factory(*args: object, **kwargs: object) -> _DynamicStubAsyncClient:
+        return _DynamicStubAsyncClient(calls)
 
     return factory
 
@@ -111,4 +153,71 @@ async def test_fetch_spot_price_range_makes_one_request_within_a_year(
     end = datetime(2024, 6, 1, tzinfo=UTC)
     await fetch_spot_price_range(start, end)
 
+    assert len(calls) == 1
+
+
+def _freeze_now(monkeypatch: pytest.MonkeyPatch, now: datetime) -> None:
+    monkeypatch.setattr(pricing, "_current_utc_time", lambda: now)
+
+
+async def test_fetch_spot_price_range_caches_a_fully_settled_range(monkeypatch: pytest.MonkeyPatch):
+    _freeze_now(monkeypatch, datetime(2024, 7, 1, tzinfo=UTC))
+    calls: list[dict] = []
+    monkeypatch.setattr("app.pricing.httpx.AsyncClient", dynamic_stub_client(calls))
+
+    start, end = finnish_day_bounds_utc(date(2024, 6, 14))
+
+    first = await fetch_spot_price_range(start, end)
+    assert len(calls) == 1
+
+    second = await fetch_spot_price_range(start, end)
+    assert len(calls) == 1  # no additional HTTP call - served from cache
+    assert second == first
+
+
+async def test_fetch_spot_price_range_never_caches_the_live_portion(monkeypatch: pytest.MonkeyPatch):
+    now = datetime(2024, 6, 15, 10, tzinfo=UTC)
+    _freeze_now(monkeypatch, now)
+    calls: list[dict] = []
+    monkeypatch.setattr("app.pricing.httpx.AsyncClient", dynamic_stub_client(calls))
+
+    start, today_start = finnish_day_bounds_utc(date(2024, 6, 14))
+    end = today_start + timedelta(hours=6)
+
+    await fetch_spot_price_range(start, end)
+    assert len(calls) == 2  # settled portion + live portion
+
+    await fetch_spot_price_range(start, end)
+    assert len(calls) == 3  # settled portion cached, live portion re-fetched
+
+
+async def test_fetch_spot_price_range_refetches_whole_settled_range_on_partial_cache(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    _freeze_now(monkeypatch, datetime(2024, 7, 1, tzinfo=UTC))
+    start, end = finnish_day_bounds_utc(date(2024, 6, 14))
+
+    # Pre-seed the cache with all but one hour of the range.
+    spot_price_cache.store_entries(
+        [(start + timedelta(hours=h), 5.0) for h in range(23)]
+    )
+
+    calls: list[dict] = []
+    monkeypatch.setattr("app.pricing.httpx.AsyncClient", dynamic_stub_client(calls))
+
+    entries = await fetch_spot_price_range(start, end)
+
+    assert len(calls) == 1  # incomplete cache triggers one full refetch
+    assert len(entries) == 24
+
+
+async def test_fetch_spot_prices_caches_a_past_day(monkeypatch: pytest.MonkeyPatch):
+    _freeze_now(monkeypatch, datetime(2024, 7, 1, tzinfo=UTC))
+    calls: list[dict] = []
+    monkeypatch.setattr("app.pricing.httpx.AsyncClient", dynamic_stub_client(calls))
+
+    await fetch_spot_prices(date(2024, 6, 14))
+    assert len(calls) == 1
+
+    await fetch_spot_prices(date(2024, 6, 14))
     assert len(calls) == 1
