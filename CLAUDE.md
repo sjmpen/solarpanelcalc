@@ -9,6 +9,10 @@ and their electricity contract type (spot price vs. fixed price).
 
 - **Backend**: Python + FastAPI, managed with `uv`, tested with `pytest`.
 - **Frontend**: React + TypeScript via Vite.
+- **Hero banner**: `frontend/public/hero-landscape.svg`, a hand-drawn Firewatch-
+  style Finnish lake scene (aurora, sunset, spruce + a birch, a lakeside
+  cottage) rendered above the `<h1>` in `App.tsx`. Pure decoration, no
+  behavior — self-contained colors so it looks the same in light/dark mode.
 - **Maps**: Leaflet (`react-leaflet`) + OpenStreetMap/Nominatim — no API key
   needed. Address search is submit-based (not type-ahead), to stay within
   Nominatim's usage policy; clicking the map sets a location directly.

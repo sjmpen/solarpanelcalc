@@ -1,0 +1,113 @@
+<svg viewBox="0 0 1600 500" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Illustration of a Finnish lake landscape at dusk with the aurora borealis, spruce and birch trees, and a lakeside cottage">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#191632"/>
+      <stop offset="30%" stop-color="#392c58"/>
+      <stop offset="55%" stop-color="#7c5470"/>
+      <stop offset="76%" stop-color="#dd8659"/>
+      <stop offset="100%" stop-color="#f7bf7c"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#513f60"/>
+      <stop offset="40%" stop-color="#33274a"/>
+      <stop offset="100%" stop-color="#181227"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff2c9" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#ffd889" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffd889" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="farHill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6b5989"/>
+      <stop offset="100%" stop-color="#584872"/>
+    </linearGradient>
+    <linearGradient id="midHill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#463a5e"/>
+      <stop offset="100%" stop-color="#392f4e"/>
+    </linearGradient>
+    <filter id="blurSoft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="500" fill="url(#sky)"/>
+
+  <g style="mix-blend-mode:screen" filter="url(#blurSoft)">
+    <path d="M0,90 Q220,35 440,75 T900,55 T1600,100 L1600,190 Q1300,130 1000,155 T520,145 T0,175 Z" fill="#6fe3b0" opacity="0.45"/>
+    <path d="M0,150 Q260,95 560,135 T1150,115 T1600,155 L1600,230 Q1250,175 900,200 T400,190 T0,225 Z" fill="#49bcc9" opacity="0.35"/>
+  </g>
+
+  <circle cx="1190" cy="300" r="130" fill="url(#sunGlow)"/>
+  <circle cx="1190" cy="300" r="44" fill="#ffeec0"/>
+
+  <path d="M0,300 Q150,265 320,282 T650,268 T980,288 T1320,262 T1600,283 L1600,340 L0,340 Z" fill="url(#farHill)"/>
+
+  <path d="M0,340 Q200,300 420,325 T900,305 T1600,330 L1600,400 L0,400 Z" fill="url(#midHill)"/>
+
+  <rect x="0" y="330" width="1600" height="150" fill="url(#water)"/>
+
+  <g opacity="0.5">
+    <rect x="0" y="335" width="1600" height="10" fill="#f7bf7c" opacity="0.3"/>
+    <rect x="0" y="352" width="1600" height="5" fill="#dd8659" opacity="0.25"/>
+    <rect x="0" y="368" width="1600" height="4" fill="#7c5470" opacity="0.2"/>
+    <rect x="0" y="390" width="1600" height="3" fill="#392c58" opacity="0.2"/>
+  </g>
+
+  <!-- island with cottage -->
+  <g transform="translate(860,392)">
+    <ellipse cx="0" cy="16" rx="130" ry="16" fill="#120f1c"/>
+
+    <polygon points="-95,4 -63,4 -79,-66" fill="#171420"/>
+    <polygon points="-72,4 -40,4 -56,-92" fill="#171420"/>
+
+    <rect x="6" y="-32" width="46" height="32" fill="#7a3327"/>
+    <polygon points="2,-32 56,-32 29,-52" fill="#2a1f2c"/>
+    <rect x="18" y="-16" width="10" height="16" fill="#2a1f2c"/>
+    <rect x="34" y="-24" width="9" height="9" fill="#ffd27f"/>
+    <rect x="4" y="-2" width="54" height="6" fill="#120f1c"/>
+    <rect x="24" y="-46" width="5" height="16" fill="#3a2c2c"/>
+
+    <polygon points="66,4 94,4 80,-56" fill="#171420"/>
+    <polygon points="90,4 114,4 102,-38" fill="#1c1928"/>
+  </g>
+
+  <!-- foreground shore -->
+  <path d="M0,430 Q400,405 800,425 T1600,410 L1600,500 L0,500 Z" fill="#0f0c18"/>
+
+  <!-- left foreground: spruces + a birch cluster -->
+  <g fill="#0c0a15">
+    <polygon points="15,500 65,500 40,325"/>
+    <polygon points="150,500 195,500 172,360"/>
+    <polygon points="135,500 210,500 172,330" opacity="0.95"/>
+    <polygon points="-20,500 30,500 5,380"/>
+  </g>
+
+  <!-- birch: pale tapering trunks (bark stays pale even backlit), sparse dark canopy like any silhouette -->
+  <g>
+    <g fill="#0c0a15">
+      <ellipse cx="90" cy="272" rx="30" ry="22"/>
+      <ellipse cx="122" cy="288" rx="22" ry="17"/>
+      <ellipse cx="62" cy="292" rx="20" ry="16"/>
+      <ellipse cx="105" cy="255" rx="18" ry="14"/>
+    </g>
+    <path d="M92,500 C90,430 96,370 88,290" stroke="#d8cdb8" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M108,500 C110,440 104,385 112,300" stroke="#c9bda6" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <g stroke="#0c0a15" stroke-width="3" opacity="0.7">
+      <line x1="86" y1="460" x2="94" y2="458"/>
+      <line x1="90" y1="410" x2="98" y2="407"/>
+      <line x1="85" y1="360" x2="93" y2="358"/>
+      <line x1="106" y1="430" x2="112" y2="428"/>
+      <line x1="109" y1="380" x2="115" y2="378"/>
+    </g>
+  </g>
+
+  <!-- right foreground spruces -->
+  <g fill="#0c0a15">
+    <polygon points="1430,500 1480,500 1455,350"/>
+    <polygon points="1410,500 1500,500 1455,315" opacity="0.95"/>
+    <polygon points="1520,500 1570,500 1545,375"/>
+    <polygon points="1500,500 1590,500 1545,340" opacity="0.95"/>
+    <polygon points="1600,500 1620,500 1610,400"/>
+  </g>
+</svg>

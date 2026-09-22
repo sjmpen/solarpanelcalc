@@ -18,6 +18,7 @@ function App() {
 
   return (
     <>
+      <img src="/hero-landscape.svg" alt="" className="hero-banner" />
       <h1>solarpanelcalc</h1>
 
       <ConsumptionUpload onFileSelected={setConsumptionFile} />
