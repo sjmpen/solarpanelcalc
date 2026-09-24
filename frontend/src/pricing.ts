@@ -9,6 +9,10 @@ export type PricingChoice =
   | { type: 'fixed'; priceCentsPerKwh: number }
   | { type: 'spot'; marginCentsPerKwh: number }
 
+export type ExportPricing =
+  | { type: 'fixed'; priceCentsPerKwh: number; commissionCentsPerKwh: number }
+  | { type: 'spot'; commissionCentsPerKwh: number }
+
 export type TransferPricing =
   | { type: 'flat'; priceCentsPerKwh: number }
   | {

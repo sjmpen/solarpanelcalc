@@ -76,6 +76,7 @@ describe('SavingsResults', () => {
       baselineCostEur: 150,
       withSolarCostEur: 120,
       savingsEur: 30,
+      totalExportRevenueEur: 0,
       monthly: [
         {
           year: 2025,
@@ -86,6 +87,7 @@ describe('SavingsResults', () => {
           baselineCostEur: 75,
           withSolarCostEur: 60,
           savingsEur: 15,
+          exportRevenueEur: 0,
         },
       ],
     })
@@ -95,12 +97,67 @@ describe('SavingsResults', () => {
 
     await user.click(screen.getByRole('button', { name: /calculate savings/i }))
 
-    expect(await screen.findByText(/€30/)).toBeInTheDocument()
+    await screen.findByText(/simplified estimate/i)
+    expect(document.querySelector('.savings-headline')?.textContent).toMatch(/you would have saved €30/i)
     expect(screen.getByText(/88\.0%/)).toBeInTheDocument()
-    expect(screen.getByText('Exported (not priced)')).toBeInTheDocument()
+    expect(screen.getAllByText('Exported').length).toBeGreaterThan(0)
     expect(screen.getByText(/simplified estimate/i)).toBeInTheDocument()
 
-    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, TRANSFER, undefined)
+    expect(calculateSavingsMock).toHaveBeenCalledWith(
+      FILE,
+      LOCATION,
+      PRODUCTION,
+      PRICING,
+      TRANSFER,
+      undefined,
+      undefined,
+    )
+  })
+
+  it('folds export revenue into the headline when it is present', async () => {
+    calculateSavingsMock.mockResolvedValue({
+      totalConsumptionKwh: 1000,
+      totalSelfConsumedKwh: 150,
+      totalExportedKwh: 20,
+      selfConsumptionRate: 0.88,
+      baselineCostEur: 150,
+      withSolarCostEur: 120,
+      savingsEur: 30,
+      totalExportRevenueEur: 5,
+      monthly: [
+        {
+          year: 2025,
+          month: 1,
+          consumptionKwh: 500,
+          selfConsumedKwh: 75,
+          exportedKwh: 10,
+          baselineCostEur: 75,
+          withSolarCostEur: 60,
+          savingsEur: 15,
+          exportRevenueEur: 5,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    const exportPricing = { type: 'spot' as const, commissionCentsPerKwh: 0.5 }
+
+    render(<SavingsResults {...READY_PROPS} exportPricing={exportPricing} />)
+
+    await user.click(screen.getByRole('button', { name: /calculate savings/i }))
+
+    await screen.findByText(/simplified estimate/i)
+    expect(document.querySelector('.savings-headline')?.textContent).toMatch(
+      /you would have gained €35 .*savings and export income/i,
+    )
+    expect(calculateSavingsMock).toHaveBeenCalledWith(
+      FILE,
+      LOCATION,
+      PRODUCTION,
+      PRICING,
+      TRANSFER,
+      undefined,
+      exportPricing,
+    )
   })
 
   it('passes the selected date range through to calculateSavings', async () => {
@@ -112,6 +169,7 @@ describe('SavingsResults', () => {
       baselineCostEur: 0,
       withSolarCostEur: 0,
       savingsEur: 0,
+      totalExportRevenueEur: 0,
       monthly: [],
     })
     const user = userEvent.setup()
@@ -121,7 +179,15 @@ describe('SavingsResults', () => {
 
     await user.click(screen.getByRole('button', { name: /calculate savings/i }))
 
-    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, TRANSFER, dateRange)
+    expect(calculateSavingsMock).toHaveBeenCalledWith(
+      FILE,
+      LOCATION,
+      PRODUCTION,
+      PRICING,
+      TRANSFER,
+      dateRange,
+      undefined,
+    )
   })
 
   it('shows the backend error message when the calculation fails', async () => {

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import './App.css'
 import type { DateRange } from './api'
 import ConsumptionUpload from './components/ConsumptionUpload'
+import ExportPricingFields from './components/ExportPricingFields'
 import LocationPicker, { type Location } from './components/LocationPicker'
 import PricingSelector from './components/PricingSelector'
 import SavingsResults from './components/SavingsResults'
 import SolarEstimate from './components/SolarEstimate'
 import TransferPricingFields from './components/TransferPricingFields'
-import type { PricingChoice, TransferPricing } from './pricing'
+import type { ExportPricing, PricingChoice, TransferPricing } from './pricing'
 import type { SolarProductionEstimate } from './solar'
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
   const [productionEstimate, setProductionEstimate] = useState<SolarProductionEstimate | null>(null)
   const [pricing, setPricing] = useState<PricingChoice | null>(null)
   const [transferPricing, setTransferPricing] = useState<TransferPricing | null>(null)
+  const [exportPricing, setExportPricing] = useState<ExportPricing | null>(null)
 
   return (
     <>
@@ -28,6 +30,7 @@ function App() {
       <SolarEstimate location={location} onEstimateChange={setProductionEstimate} />
       <PricingSelector onPricingChange={setPricing} />
       <TransferPricingFields onChange={setTransferPricing} />
+      <ExportPricingFields onChange={setExportPricing} />
       <SavingsResults
         file={consumptionFile}
         dateRange={dateRange}
@@ -35,6 +38,7 @@ function App() {
         productionEstimate={productionEstimate}
         pricing={pricing}
         transferPricing={transferPricing}
+        exportPricing={exportPricing}
       />
     </>
   )

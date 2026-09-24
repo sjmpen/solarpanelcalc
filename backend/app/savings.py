@@ -17,6 +17,12 @@ class EnergyPricingInput(BaseModel):
     margin_cents_per_kwh: float | None = None  # spot, on top of Elering's price
 
 
+class ExportPricingInput(BaseModel):
+    type: Literal["fixed", "spot"]
+    price_cents_per_kwh: float | None = None  # fixed sell-back price
+    commission_cents_per_kwh: float = 0.0  # deducted from the sell price either way
+
+
 class MonthlyProductionInput(BaseModel):
     month: int
     kwh: float
@@ -31,6 +37,7 @@ class MonthlySavings(BaseModel):
     baseline_cost_eur: float
     with_solar_cost_eur: float
     savings_eur: float
+    export_revenue_eur: float
 
 
 class SavingsResult(BaseModel):
@@ -41,11 +48,33 @@ class SavingsResult(BaseModel):
     baseline_cost_eur: float
     with_solar_cost_eur: float
     savings_eur: float
+    total_export_revenue_eur: float
     monthly: list[MonthlySavings]
 
 
 def _hour_start(timestamp: datetime) -> datetime:
     return timestamp.replace(minute=0, second=0, microsecond=0)
+
+
+def _export_price_cents_per_kwh(
+    hour: datetime, export_pricing: ExportPricingInput, spot_price_by_hour: dict[datetime, float]
+) -> float | None:
+    """The sell-back price for exported energy in `hour`, net of commission.
+
+    Floored at 0 - a commission larger than the sell price shouldn't produce
+    negative revenue, consistent with this app's conservative-estimate
+    philosophy elsewhere. Returns None (excluded, not estimated) when a spot
+    sell price has no matching data for this hour.
+    """
+    if export_pricing.type == "spot":
+        spot_price = spot_price_by_hour.get(hour)
+        if spot_price is None:
+            return None
+        sell_price = spot_price
+    else:
+        sell_price = export_pricing.price_cents_per_kwh or 0.0
+
+    return max(sell_price - export_pricing.commission_cents_per_kwh, 0.0)
 
 
 def calculate_savings(
@@ -56,6 +85,7 @@ def calculate_savings(
     energy_pricing: EnergyPricingInput,
     transfer_pricing: TransferPricingInput,
     spot_prices: list[SpotPriceEntry] | None,
+    export_pricing: ExportPricingInput | None = None,
 ) -> SavingsResult:
     """Combines consumption, a synthesized hourly production curve, and pricing
     into a savings estimate. See backend/app/solar_shape.py and the M5 plan
@@ -95,6 +125,7 @@ def calculate_savings(
     total_exported = 0.0
     baseline_cost_eur = 0.0
     with_solar_cost_eur = 0.0
+    total_export_revenue_eur = 0.0
 
     monthly_acc: dict[tuple[int, int], dict[str, float]] = defaultdict(
         lambda: {
@@ -103,6 +134,7 @@ def calculate_savings(
             "exported_kwh": 0.0,
             "baseline_cost_eur": 0.0,
             "with_solar_cost_eur": 0.0,
+            "export_revenue_eur": 0.0,
         }
     )
 
@@ -125,6 +157,11 @@ def calculate_savings(
 
         hour_baseline_cost = consumption * price_per_kwh_eur
         hour_with_solar_cost = grid_import * price_per_kwh_eur
+        hour_export_revenue = 0.0
+        if export_pricing is not None:
+            export_price = _export_price_cents_per_kwh(hour, export_pricing, spot_price_by_hour)
+            if export_price is not None:
+                hour_export_revenue = exported * export_price / 100
 
         total_consumption += consumption
         total_production += production
@@ -132,6 +169,7 @@ def calculate_savings(
         total_exported += exported
         baseline_cost_eur += hour_baseline_cost
         with_solar_cost_eur += hour_with_solar_cost
+        total_export_revenue_eur += hour_export_revenue
 
         local = hour.astimezone(HELSINKI_TZ)
         acc = monthly_acc[(local.year, local.month)]
@@ -140,6 +178,7 @@ def calculate_savings(
         acc["exported_kwh"] += exported
         acc["baseline_cost_eur"] += hour_baseline_cost
         acc["with_solar_cost_eur"] += hour_with_solar_cost
+        acc["export_revenue_eur"] += hour_export_revenue
 
     self_consumption_rate = total_self_consumed / total_production if total_production > 0 else 0.0
 
@@ -153,6 +192,7 @@ def calculate_savings(
             baseline_cost_eur=round(acc["baseline_cost_eur"], 2),
             with_solar_cost_eur=round(acc["with_solar_cost_eur"], 2),
             savings_eur=round(acc["baseline_cost_eur"] - acc["with_solar_cost_eur"], 2),
+            export_revenue_eur=round(acc["export_revenue_eur"], 2),
         )
         for (year, month), acc in sorted(monthly_acc.items())
     ]
@@ -164,6 +204,7 @@ def calculate_savings(
         self_consumption_rate=round(self_consumption_rate, 4),
         baseline_cost_eur=round(baseline_cost_eur, 2),
         with_solar_cost_eur=round(with_solar_cost_eur, 2),
+        total_export_revenue_eur=round(total_export_revenue_eur, 2),
         savings_eur=round(baseline_cost_eur - with_solar_cost_eur, 2),
         monthly=monthly,
     )

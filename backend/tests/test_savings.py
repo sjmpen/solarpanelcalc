@@ -5,7 +5,8 @@ import pytest
 
 from app.csv_parser import parse_fingrid_csv
 from app.models import Reading
-from app.savings import EnergyPricingInput, MonthlyProductionInput, calculate_savings
+from app.pricing import SpotPriceEntry
+from app.savings import EnergyPricingInput, ExportPricingInput, MonthlyProductionInput, calculate_savings
 from app.transfer_pricing import TransferPricingInput
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_consumption.csv"
@@ -154,6 +155,103 @@ def test_transfer_pricing_increases_both_baseline_and_with_solar_cost():
 
     assert high_transfer.baseline_cost_eur > low_transfer.baseline_cost_eur
     assert high_transfer.with_solar_cost_eur > low_transfer.with_solar_cost_eur
+
+
+def test_export_revenue_is_zero_without_export_pricing():
+    day = datetime(2024, 6, 1, tzinfo=UTC)
+    readings = hourly_readings(day, hours=24, kwh_per_hour=0.0)
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=6, kwh=300.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+    )
+
+    assert result.total_export_revenue_eur == 0
+    assert all(m.export_revenue_eur == 0 for m in result.monthly)
+
+
+def test_fixed_export_price_minus_commission_prices_exported_energy():
+    day = datetime(2024, 6, 1, tzinfo=UTC)
+    readings = hourly_readings(day, hours=24, kwh_per_hour=0.0)
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+    production = [MonthlyProductionInput(month=6, kwh=300.0)]
+
+    baseline = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=production,
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+    )
+    with_export = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=production,
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        export_pricing=ExportPricingInput(type="fixed", price_cents_per_kwh=5.0, commission_cents_per_kwh=1.0),
+    )
+
+    assert with_export.total_exported_kwh == baseline.total_exported_kwh
+    assert with_export.savings_eur == baseline.savings_eur  # export pricing never affects self-consumption savings
+    expected_revenue = with_export.total_exported_kwh * (5.0 - 1.0) / 100
+    assert with_export.total_export_revenue_eur == pytest.approx(expected_revenue, abs=0.01)
+    assert sum(m.export_revenue_eur for m in with_export.monthly) == pytest.approx(
+        with_export.total_export_revenue_eur, abs=0.01
+    )
+
+
+def test_export_commission_larger_than_price_floors_revenue_at_zero():
+    day = datetime(2024, 6, 1, tzinfo=UTC)
+    readings = hourly_readings(day, hours=24, kwh_per_hour=0.0)
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=6, kwh=300.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        export_pricing=ExportPricingInput(type="fixed", price_cents_per_kwh=2.0, commission_cents_per_kwh=5.0),
+    )
+
+    assert result.total_exported_kwh > 0
+    assert result.total_export_revenue_eur == 0
+
+
+def test_spot_export_price_minus_commission_prices_exported_energy():
+    day = datetime(2024, 6, 1, tzinfo=UTC)
+    readings = hourly_readings(day, hours=24, kwh_per_hour=0.0)
+    spot_prices = [SpotPriceEntry(timestamp=day + timedelta(hours=h), price_cents_per_kwh=8.0) for h in range(24)]
+    # Fixed consumption contract, but export is spot-priced - spot_prices must
+    # still be usable for the export side even though energy_pricing is fixed.
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=6, kwh=300.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=spot_prices,
+        export_pricing=ExportPricingInput(type="spot", commission_cents_per_kwh=2.0),
+    )
+
+    expected_revenue = result.total_exported_kwh * (8.0 - 2.0) / 100
+    assert result.total_export_revenue_eur == pytest.approx(expected_revenue, abs=0.01)
 
 
 def test_raises_on_empty_readings():

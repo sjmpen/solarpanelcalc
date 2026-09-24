@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { DateRange } from '../api'
-import type { PricingChoice, TransferPricing } from '../pricing'
+import type { ExportPricing, PricingChoice, TransferPricing } from '../pricing'
 import { calculateSavings, type MonthlySavings, type SavingsResult } from '../savings'
 import type { SolarProductionEstimate } from '../solar'
 import type { Location } from './LocationPicker'
@@ -17,6 +17,7 @@ interface SavingsResultsProps {
   productionEstimate: SolarProductionEstimate | null
   pricing: PricingChoice | null
   transferPricing: TransferPricing | null
+  exportPricing?: ExportPricing | null
 }
 
 function missingPrerequisites(props: SavingsResultsProps): string[] {
@@ -131,6 +132,7 @@ function SavingsResults({
   productionEstimate,
   pricing,
   transferPricing,
+  exportPricing,
 }: SavingsResultsProps) {
   const [result, setResult] = useState<SavingsResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -147,7 +149,17 @@ function SavingsResults({
     setResult(null)
 
     try {
-      setResult(await calculateSavings(file, location, productionEstimate, pricing, transferPricing, dateRange))
+      setResult(
+        await calculateSavings(
+          file,
+          location,
+          productionEstimate,
+          pricing,
+          transferPricing,
+          dateRange,
+          exportPricing,
+        ),
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Savings calculation failed')
     } finally {
@@ -172,8 +184,10 @@ function SavingsResults({
           {result && (
             <div className="savings-result">
               <p className="savings-headline">
-                You would have saved <strong>€{result.savingsEur.toLocaleString()}</strong> over{' '}
-                {result.monthly.length} month{result.monthly.length === 1 ? '' : 's'}.
+                You would have {result.totalExportRevenueEur > 0 ? 'gained' : 'saved'}{' '}
+                <strong>€{(result.savingsEur + result.totalExportRevenueEur).toLocaleString()}</strong> over{' '}
+                {result.monthly.length} month{result.monthly.length === 1 ? '' : 's'}
+                {result.totalExportRevenueEur > 0 ? ' in savings and export income' : ''}.
               </p>
 
               <div className="summary">
@@ -184,11 +198,17 @@ function SavingsResults({
                   <dt>Cost with solar</dt>
                   <dd>€{result.withSolarCostEur.toLocaleString()}</dd>
 
+                  <dt>Self-consumption savings</dt>
+                  <dd>€{result.savingsEur.toLocaleString()}</dd>
+
                   <dt>Self-consumption rate</dt>
                   <dd>{(result.selfConsumptionRate * 100).toFixed(1)}%</dd>
 
-                  <dt>Exported (not priced)</dt>
+                  <dt>Exported</dt>
                   <dd>{result.totalExportedKwh.toLocaleString()} kWh</dd>
+
+                  <dt>Export revenue</dt>
+                  <dd>€{result.totalExportRevenueEur.toLocaleString()}</dd>
                 </dl>
               </div>
 
@@ -201,6 +221,7 @@ function SavingsResults({
                     <th>Self-consumed</th>
                     <th>Exported</th>
                     <th>Savings</th>
+                    <th>Export revenue</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,6 +233,7 @@ function SavingsResults({
                       <td>{m.selfConsumedKwh.toLocaleString()} kWh</td>
                       <td>{m.exportedKwh.toLocaleString()} kWh</td>
                       <td>€{m.savingsEur.toLocaleString()}</td>
+                      <td>€{m.exportRevenueEur.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -220,9 +242,10 @@ function SavingsResults({
               <p className="hint">
                 This is a simplified estimate, not a bill-accurate simulation. Solar production is
                 synthesized hourly from monthly PVGIS totals using a sunrise/sunset daylight model, not
-                real hourly irradiance data. Exported (excess) energy is shown in kWh but not priced,
-                since sell-back compensation varies by contract. Hours with no matching spot price (if
-                using spot pricing) are excluded rather than estimated.
+                real hourly irradiance data. Exported (excess) energy is only priced as export revenue
+                when sell-back pricing is entered above; otherwise it's shown in kWh but excluded from
+                the totals, since sell-back compensation varies by contract. Hours with no matching spot
+                price (if using spot pricing) are excluded rather than estimated.
               </p>
             </div>
           )}

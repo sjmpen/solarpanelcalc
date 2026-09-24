@@ -1,5 +1,5 @@
 import type { DateRange } from './api'
-import type { PricingChoice, TransferPricing } from './pricing'
+import type { ExportPricing, PricingChoice, TransferPricing } from './pricing'
 import type { SolarProductionEstimate } from './solar'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -13,6 +13,7 @@ export interface MonthlySavings {
   baselineCostEur: number
   withSolarCostEur: number
   savingsEur: number
+  exportRevenueEur: number
 }
 
 export interface SavingsResult {
@@ -23,6 +24,7 @@ export interface SavingsResult {
   baselineCostEur: number
   withSolarCostEur: number
   savingsEur: number
+  totalExportRevenueEur: number
   monthly: MonthlySavings[]
 }
 
@@ -34,6 +36,7 @@ interface SavingsApiResponse {
   baseline_cost_eur: number
   with_solar_cost_eur: number
   savings_eur: number
+  total_export_revenue_eur: number
   monthly: {
     year: number
     month: number
@@ -43,6 +46,7 @@ interface SavingsApiResponse {
     baseline_cost_eur: number
     with_solar_cost_eur: number
     savings_eur: number
+    export_revenue_eur: number
   }[]
 }
 
@@ -56,6 +60,20 @@ function energyPricingToApi(pricing: PricingChoice) {
   return {
     type: 'spot',
     margin_cents_per_kwh: pricing.marginCentsPerKwh,
+  }
+}
+
+function exportPricingToApi(exportPricing: ExportPricing) {
+  if (exportPricing.type === 'fixed') {
+    return {
+      type: 'fixed',
+      price_cents_per_kwh: exportPricing.priceCentsPerKwh,
+      commission_cents_per_kwh: exportPricing.commissionCentsPerKwh,
+    }
+  }
+  return {
+    type: 'spot',
+    commission_cents_per_kwh: exportPricing.commissionCentsPerKwh,
   }
 }
 
@@ -88,6 +106,7 @@ export async function calculateSavings(
   pricing: PricingChoice,
   transferPricing: TransferPricing,
   dateRange?: DateRange | null,
+  exportPricing?: ExportPricing | null,
 ): Promise<SavingsResult> {
   const requestBody = {
     lat: location.lat,
@@ -96,6 +115,7 @@ export async function calculateSavings(
     energy_pricing: energyPricingToApi(pricing),
     transfer_pricing: transferPricingToApi(transferPricing),
     ...(dateRange ? { start_date: dateRange.start, end_date: dateRange.end } : {}),
+    ...(exportPricing ? { export_pricing: exportPricingToApi(exportPricing) } : {}),
   }
 
   const formData = new FormData()
@@ -121,6 +141,7 @@ export async function calculateSavings(
     baselineCostEur: body.baseline_cost_eur,
     withSolarCostEur: body.with_solar_cost_eur,
     savingsEur: body.savings_eur,
+    totalExportRevenueEur: body.total_export_revenue_eur,
     monthly: body.monthly.map((m) => ({
       year: m.year,
       month: m.month,
@@ -130,6 +151,7 @@ export async function calculateSavings(
       baselineCostEur: m.baseline_cost_eur,
       withSolarCostEur: m.with_solar_cost_eur,
       savingsEur: m.savings_eur,
+      exportRevenueEur: m.export_revenue_eur,
     })),
   }
 }

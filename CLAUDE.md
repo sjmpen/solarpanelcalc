@@ -66,6 +66,19 @@ and their electricity contract type (spot price vs. fixed price).
 - **Savings engine** (`backend/app/savings.py`, `POST /savings/calculate`):
   combines consumption + a synthesized hourly production curve + pricing
   into a savings estimate. See "How the savings engine works" below.
+- **Export (sell-back) pricing** (`ExportPricingFields.tsx`, optional — off
+  by default, since not every contract prices sell-back at all): lets the
+  user price exported/excess solar, either at that hour's spot price or a
+  fixed sell price, minus an optional sales commission (c/kWh) some
+  retailers deduct. Mirrors `EnergyPricingInput`'s fixed/spot shape as
+  `ExportPricingInput` (`backend/app/savings.py`) — sell price is floored at
+  0 so a commission larger than the price can't produce negative revenue.
+  Adds `export_revenue_eur` (monthly) / `total_export_revenue_eur` (total)
+  to the savings response; `savings_eur` keeps its original
+  self-consumption-only meaning (export revenue is additive on top, shown
+  separately, and folded into the headline only when non-zero). A fixed
+  energy contract with spot-priced export still triggers the Elering fetch
+  in `main.py` (`needs_spot_prices` now checks both).
 - **Consumption date-range subsetting**: once a CSV is uploaded,
   `ConsumptionUpload.tsx` shows two `<input type="date">` fields ("From"/
   "To") under the summary, defaulting to the file's full range. Changing
@@ -165,10 +178,11 @@ Elering call and keeps the "verify locally" caveat.
 
 - This is a simplified model, not a bill-accurate simulation — surfaced as
   a permanent note in `SavingsResults.tsx`.
-- Exported (excess) solar is reported in kWh but **not priced** — no export
-  euro figure, since sell-back compensation varies by contract and isn't
-  collected as an input. The headline savings figure is self-consumption
-  savings only, a conservative lower bound.
+- Exported (excess) solar is only priced as export revenue when the user
+  fills in export/sell-back pricing (see the Stack section above) — off by
+  default, since it varies by contract and not every retailer buys back
+  excess at all. Without it, the headline is self-consumption savings only,
+  a conservative lower bound.
 - Hours with no matching spot price (e.g. consumption data extending past
   whatever "today" actually is when run locally, since this sandbox's
   system clock is set to a fictional future date) are excluded from the

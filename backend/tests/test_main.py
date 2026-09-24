@@ -149,6 +149,7 @@ def _savings_request(
     transfer_pricing: dict = FLAT_TRANSFER,
     start_date: str | None = None,
     end_date: str | None = None,
+    export_pricing: dict | None = None,
 ) -> str:
     return json.dumps(
         {
@@ -157,6 +158,7 @@ def _savings_request(
             "monthly_production": [{"month": 1, "kwh": 150.0}],
             "energy_pricing": energy_pricing,
             "transfer_pricing": transfer_pricing,
+            "export_pricing": export_pricing,
             "start_date": start_date,
             "end_date": end_date,
         }
@@ -182,6 +184,66 @@ def test_savings_calculate_fixed_price_end_to_end():
         body["baseline_cost_eur"] - body["with_solar_cost_eur"], abs=0.01
     )
     assert len(body["monthly"]) >= 1
+
+
+def test_savings_calculate_prices_exported_energy_when_export_pricing_is_set():
+    with FIXTURE.open("rb") as f:
+        baseline_response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={"request": _savings_request({"type": "fixed", "price_cents_per_kwh": 10.0})},
+        )
+    with FIXTURE.open("rb") as f:
+        with_export_response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": _savings_request(
+                    {"type": "fixed", "price_cents_per_kwh": 10.0},
+                    # This fixture's real January production barely exceeds
+                    # consumption at any hour (~0.05 kWh exported total), so a
+                    # realistic sell price would round to 0.00 EUR - a high
+                    # price here just keeps the assertion meaningful.
+                    export_pricing={"type": "fixed", "price_cents_per_kwh": 50.0, "commission_cents_per_kwh": 5.0},
+                )
+            },
+        )
+
+    assert baseline_response.status_code == 200
+    assert with_export_response.status_code == 200
+    baseline_body = baseline_response.json()
+    with_export_body = with_export_response.json()
+
+    assert baseline_body["total_export_revenue_eur"] == 0
+    assert with_export_body["total_export_revenue_eur"] > 0
+    assert with_export_body["savings_eur"] == baseline_body["savings_eur"]
+
+
+def test_savings_calculate_fetches_spot_prices_for_a_spot_export_even_with_fixed_energy(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls: list[tuple] = []
+
+    async def _counting_fetch_spot_price_range(start, end):
+        calls.append((start, end))
+        return await _fake_fetch_spot_price_range(start, end)
+
+    monkeypatch.setattr(main, "fetch_spot_price_range", _counting_fetch_spot_price_range)
+
+    with FIXTURE.open("rb") as f:
+        response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": _savings_request(
+                    {"type": "fixed", "price_cents_per_kwh": 10.0},
+                    export_pricing={"type": "spot", "commission_cents_per_kwh": 0.5},
+                )
+            },
+        )
+
+    assert response.status_code == 200
+    assert len(calls) == 1  # fixed energy alone would never call this
 
 
 def test_savings_calculate_respects_a_narrowed_date_range():

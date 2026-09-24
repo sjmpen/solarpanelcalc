@@ -14,7 +14,13 @@ from app.pvgis import (
     SolarSystemParams,
     fetch_solar_production,
 )
-from app.savings import EnergyPricingInput, MonthlyProductionInput, SavingsResult, calculate_savings
+from app.savings import (
+    EnergyPricingInput,
+    ExportPricingInput,
+    MonthlyProductionInput,
+    SavingsResult,
+    calculate_savings,
+)
 from app.transfer_pricing import TransferPricingInput
 
 app = FastAPI(title="solarpanelcalc")
@@ -75,6 +81,7 @@ class SavingsCalculationRequest(BaseModel):
     monthly_production: list[MonthlyProductionInput]
     energy_pricing: EnergyPricingInput
     transfer_pricing: TransferPricingInput
+    export_pricing: ExportPricingInput | None = None
     start_date: date | None = None
     end_date: date | None = None
 
@@ -93,8 +100,13 @@ async def calculate_savings_endpoint(file: UploadFile, request: str = Form(...))
     except InvalidConsumptionCsv as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    export_pricing = parsed_request.export_pricing
+    needs_spot_prices = parsed_request.energy_pricing.type == "spot" or (
+        export_pricing is not None and export_pricing.type == "spot"
+    )
+
     spot_prices = None
-    if parsed_request.energy_pricing.type == "spot":
+    if needs_spot_prices:
         min_ts = min(r.timestamp for r in readings)
         max_ts = max(r.timestamp for r in readings)
         try:
@@ -111,6 +123,7 @@ async def calculate_savings_endpoint(file: UploadFile, request: str = Form(...))
             energy_pricing=parsed_request.energy_pricing,
             transfer_pricing=parsed_request.transfer_pricing,
             spot_prices=spot_prices,
+            export_pricing=export_pricing,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
