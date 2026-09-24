@@ -77,6 +77,7 @@ describe('SavingsResults', () => {
       withSolarCostEur: 120,
       savingsEur: 30,
       totalExportRevenueEur: 0,
+      totalBatteryDeliveredKwh: 0,
       annualBenefitEur: 120,
       paybackYears: null,
       monthly: [
@@ -90,6 +91,7 @@ describe('SavingsResults', () => {
           withSolarCostEur: 60,
           savingsEur: 15,
           exportRevenueEur: 0,
+          batteryDeliveredKwh: 0,
         },
       ],
     })
@@ -115,6 +117,7 @@ describe('SavingsResults', () => {
       undefined,
       undefined,
       null,
+      undefined,
     )
   })
 
@@ -128,6 +131,7 @@ describe('SavingsResults', () => {
       withSolarCostEur: 120,
       savingsEur: 30,
       totalExportRevenueEur: 5,
+      totalBatteryDeliveredKwh: 0,
       annualBenefitEur: 140,
       paybackYears: null,
       monthly: [
@@ -141,6 +145,7 @@ describe('SavingsResults', () => {
           withSolarCostEur: 60,
           savingsEur: 15,
           exportRevenueEur: 5,
+          batteryDeliveredKwh: 0,
         },
       ],
     })
@@ -164,6 +169,7 @@ describe('SavingsResults', () => {
       undefined,
       exportPricing,
       null,
+      undefined,
     )
   })
 
@@ -177,6 +183,7 @@ describe('SavingsResults', () => {
       withSolarCostEur: 0,
       savingsEur: 0,
       totalExportRevenueEur: 0,
+      totalBatteryDeliveredKwh: 0,
       annualBenefitEur: 0,
       paybackYears: null,
       monthly: [],
@@ -197,6 +204,7 @@ describe('SavingsResults', () => {
       dateRange,
       undefined,
       null,
+      undefined,
     )
   })
 
@@ -210,6 +218,7 @@ describe('SavingsResults', () => {
       withSolarCostEur: 120,
       savingsEur: 30,
       totalExportRevenueEur: 0,
+      totalBatteryDeliveredKwh: 0,
       annualBenefitEur: 120,
       paybackYears: 16.7,
       monthly: [],
@@ -234,6 +243,59 @@ describe('SavingsResults', () => {
       undefined,
       undefined,
       2000,
+      undefined,
+    )
+  })
+
+  it('passes the battery prop through and renders battery figures', async () => {
+    calculateSavingsMock.mockResolvedValue({
+      totalConsumptionKwh: 1000,
+      totalSelfConsumedKwh: 150,
+      totalExportedKwh: 5,
+      selfConsumptionRate: 0.88,
+      baselineCostEur: 150,
+      withSolarCostEur: 100,
+      savingsEur: 50,
+      totalExportRevenueEur: 0,
+      totalBatteryDeliveredKwh: 12.5,
+      annualBenefitEur: 200,
+      paybackYears: null,
+      monthly: [
+        {
+          year: 2025,
+          month: 1,
+          consumptionKwh: 500,
+          selfConsumedKwh: 87.5,
+          exportedKwh: 5,
+          baselineCostEur: 75,
+          withSolarCostEur: 50,
+          savingsEur: 25,
+          exportRevenueEur: 0,
+          batteryDeliveredKwh: 12.5,
+        },
+      ],
+    })
+    const user = userEvent.setup()
+    const battery = { capacityKwh: 10, priceEur: 5000 }
+
+    render(<SavingsResults {...READY_PROPS} battery={battery} />)
+
+    await user.click(screen.getByRole('button', { name: /calculate savings/i }))
+
+    await screen.findByText(/simplified estimate/i)
+    expect(screen.getAllByText(/from battery/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('12.5 kWh').length).toBeGreaterThan(0)
+
+    expect(calculateSavingsMock).toHaveBeenCalledWith(
+      FILE,
+      LOCATION,
+      PRODUCTION,
+      PRICING,
+      TRANSFER,
+      undefined,
+      undefined,
+      null,
+      battery,
     )
   })
 
@@ -247,6 +309,7 @@ describe('SavingsResults', () => {
       withSolarCostEur: 0,
       savingsEur: 0,
       totalExportRevenueEur: 0,
+      totalBatteryDeliveredKwh: 0,
       annualBenefitEur: 0,
       paybackYears: null,
       monthly: [],
@@ -267,6 +330,7 @@ describe('SavingsResults', () => {
       undefined,
       undefined,
       2000.5,
+      undefined,
     )
   })
 
@@ -280,6 +344,7 @@ describe('SavingsResults', () => {
       withSolarCostEur: 0,
       savingsEur: 0,
       totalExportRevenueEur: 0,
+      totalBatteryDeliveredKwh: 0,
       annualBenefitEur: 0,
       paybackYears: null,
       monthly: [],

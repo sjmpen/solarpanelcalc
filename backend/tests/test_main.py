@@ -151,6 +151,7 @@ def _savings_request(
     end_date: str | None = None,
     export_pricing: dict | None = None,
     system_cost_eur: float | None = None,
+    battery: dict | None = None,
 ) -> str:
     return json.dumps(
         {
@@ -161,6 +162,7 @@ def _savings_request(
             "transfer_pricing": transfer_pricing,
             "export_pricing": export_pricing,
             "system_cost_eur": system_cost_eur,
+            "battery": battery,
             "start_date": start_date,
             "end_date": end_date,
         }
@@ -215,6 +217,42 @@ def test_savings_calculate_computes_payback_years_from_system_cost():
     assert no_cost_body["annual_benefit_eur"] == with_cost_body["annual_benefit_eur"]
     assert with_cost_body["payback_years"] == pytest.approx(
         2000.0 / with_cost_body["annual_benefit_eur"], abs=0.1
+    )
+
+
+def test_savings_calculate_battery_flows_through_and_combines_payback_with_system_cost():
+    with FIXTURE.open("rb") as f:
+        no_battery_response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": _savings_request(
+                    {"type": "fixed", "price_cents_per_kwh": 10.0}, system_cost_eur=1000.0
+                )
+            },
+        )
+    with FIXTURE.open("rb") as f:
+        with_battery_response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": _savings_request(
+                    {"type": "fixed", "price_cents_per_kwh": 10.0},
+                    system_cost_eur=1000.0,
+                    battery={"capacity_kwh": 5.0, "price_eur": 2000.0},
+                )
+            },
+        )
+
+    assert no_battery_response.status_code == 200
+    assert with_battery_response.status_code == 200
+    no_battery_body = no_battery_response.json()
+    with_battery_body = with_battery_response.json()
+
+    assert no_battery_body["total_battery_delivered_kwh"] == 0
+    assert with_battery_body["total_battery_delivered_kwh"] > 0
+    assert with_battery_body["payback_years"] == pytest.approx(
+        3000.0 / with_battery_body["annual_benefit_eur"], abs=0.1
     )
 
 

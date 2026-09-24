@@ -6,7 +6,14 @@ import pytest
 from app.csv_parser import parse_fingrid_csv
 from app.models import Reading
 from app.pricing import SpotPriceEntry
-from app.savings import EnergyPricingInput, ExportPricingInput, MonthlyProductionInput, calculate_savings
+from app.savings import (
+    BATTERY_ROUND_TRIP_EFFICIENCY,
+    BatteryInput,
+    EnergyPricingInput,
+    ExportPricingInput,
+    MonthlyProductionInput,
+    calculate_savings,
+)
 from app.transfer_pricing import TransferPricingInput
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_consumption.csv"
@@ -318,6 +325,122 @@ def test_payback_years_is_none_when_annual_benefit_is_zero_even_with_a_cost_give
 
     assert result.annual_benefit_eur == 0
     assert result.payback_years is None
+
+
+def test_battery_increases_self_consumption_and_reduces_export_and_cost():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+    production = [MonthlyProductionInput(month=1, kwh=150.0)]
+
+    no_battery = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=production,
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+    )
+    with_battery = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=production,
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        battery=BatteryInput(capacity_kwh=5.0),
+    )
+
+    assert with_battery.total_battery_delivered_kwh > 0
+    assert with_battery.total_self_consumed_kwh > no_battery.total_self_consumed_kwh
+    assert with_battery.total_exported_kwh < no_battery.total_exported_kwh
+    assert with_battery.with_solar_cost_eur <= no_battery.with_solar_cost_eur
+    assert sum(m.battery_delivered_kwh for m in with_battery.monthly) == pytest.approx(
+        with_battery.total_battery_delivered_kwh, abs=0.01
+    )
+
+
+def test_battery_delivered_energy_is_bounded_by_capacity_and_efficiency():
+    # Effectively unlimited production means the battery fills to capacity
+    # every day and empties every night - so total delivered energy across
+    # the fixture's period can never exceed capacity * efficiency * one
+    # cycle per day, however many cycles the period actually contains.
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+    capacity_kwh = 2.0
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=1_000_000.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        battery=BatteryInput(capacity_kwh=capacity_kwh),
+    )
+
+    period_days = 3  # see test_csv_parser.py for this fixture's Finnish-day span
+    assert 0 < result.total_battery_delivered_kwh <= capacity_kwh * BATTERY_ROUND_TRIP_EFFICIENCY * period_days
+
+
+def test_battery_with_no_price_still_delivers_energy_but_no_payback():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=150.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        battery=BatteryInput(capacity_kwh=5.0),
+    )
+
+    assert result.total_battery_delivered_kwh > 0
+    assert result.payback_years is None
+
+
+def test_payback_combines_system_cost_and_battery_price():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=8.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=100.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        system_cost_eur=1000.0,
+        battery=BatteryInput(capacity_kwh=5.0, price_eur=2000.0),
+    )
+
+    assert result.annual_benefit_eur > 0
+    assert result.payback_years == pytest.approx(3000.0 / result.annual_benefit_eur, abs=0.1)
+
+
+def test_payback_from_battery_price_alone():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=8.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=100.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        battery=BatteryInput(capacity_kwh=5.0, price_eur=500.0),
+    )
+
+    assert result.annual_benefit_eur > 0
+    assert result.payback_years == pytest.approx(500.0 / result.annual_benefit_eur, abs=0.1)
 
 
 def test_raises_on_empty_readings():

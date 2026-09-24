@@ -91,6 +91,26 @@ and their electricity contract type (spot price vs. fixed price).
   separately, and folded into the headline only when non-zero). A fixed
   energy contract with spot-priced export still triggers the Elering fetch
   in `main.py` (`needs_spot_prices` now checks both).
+- **Home battery** (`BatteryFields.tsx`, optional, lifted to `App.tsx` state
+  like export pricing — it changes the simulation itself, unlike the
+  payback-only system cost field below): models a battery with a capacity
+  (kWh) and an optional cost (€). Dispatch is deliberately
+  **self-consumption-maximizing only**, not price-arbitrage (discussed with
+  the user and not built): the battery charges from solar surplus and
+  discharges to cover demand otherwise met by the grid, and *never* charges
+  from the grid or discharges to export. Round-trip efficiency is fixed at
+  `BATTERY_ROUND_TRIP_EFFICIENCY = 0.9` (`backend/app/savings.py`) — a
+  documented simplification, not user-configurable — modeled entirely on
+  discharge (charging is lossless bookkeeping). The hourly loop in
+  `calculate_savings` now explicitly sorts hours chronologically
+  (`for hour in sorted(consumption_by_hour)`) rather than relying on dict
+  insertion order, since the battery carries state (`battery_charge_kwh`)
+  across iterations. `total_self_consumed_kwh` now means "covered by solar,
+  directly or via the battery" — still energy-conserving since delivered
+  energy is always ≤ what was originally stored. Adds `battery_delivered_kwh`
+  (monthly) / `total_battery_delivered_kwh` (total); the battery's cost, if
+  given, is added to `system_cost_eur` for the payback calculation below
+  (`payback_years` now fires from either cost, or their sum, being given).
 - **Investment payback period** (optional "System cost (€)" field, local
   `useState` in `SavingsResults.tsx` — not lifted to `App.tsx`, since
   nothing else needs it): of the three approaches discussed with the user

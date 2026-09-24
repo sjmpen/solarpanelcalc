@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { DateRange } from '../api'
 import { parseDecimal } from '../numberFormat'
-import type { ExportPricing, PricingChoice, TransferPricing } from '../pricing'
+import type { Battery, ExportPricing, PricingChoice, TransferPricing } from '../pricing'
 import { calculateSavings, type MonthlySavings, type SavingsResult } from '../savings'
 import type { SolarProductionEstimate } from '../solar'
 import type { Location } from './LocationPicker'
@@ -16,6 +16,7 @@ interface SavingsResultsProps {
   dateRange?: DateRange | null
   location: Location | null
   productionEstimate: SolarProductionEstimate | null
+  battery?: Battery | null
   pricing: PricingChoice | null
   transferPricing: TransferPricing | null
   exportPricing?: ExportPricing | null
@@ -131,6 +132,7 @@ function SavingsResults({
   dateRange,
   location,
   productionEstimate,
+  battery,
   pricing,
   transferPricing,
   exportPricing,
@@ -165,6 +167,7 @@ function SavingsResults({
           dateRange,
           exportPricing,
           systemCostEur,
+          battery,
         ),
       )
     } catch (err) {
@@ -241,6 +244,9 @@ function SavingsResults({
                   <dt>Export revenue</dt>
                   <dd>€{result.totalExportRevenueEur.toLocaleString()}</dd>
 
+                  <dt>From battery</dt>
+                  <dd>{result.totalBatteryDeliveredKwh.toLocaleString()} kWh</dd>
+
                   <dt>Annualized benefit</dt>
                   <dd>€{result.annualBenefitEur.toLocaleString()}/year</dd>
                 </dl>
@@ -256,6 +262,7 @@ function SavingsResults({
                     <th>Exported</th>
                     <th>Savings</th>
                     <th>Export revenue</th>
+                    <th>From battery</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -268,6 +275,7 @@ function SavingsResults({
                       <td>{m.exportedKwh.toLocaleString()} kWh</td>
                       <td>€{m.savingsEur.toLocaleString()}</td>
                       <td>€{m.exportRevenueEur.toLocaleString()}</td>
+                      <td>{m.batteryDeliveredKwh.toLocaleString()} kWh</td>
                     </tr>
                   ))}
                 </tbody>
@@ -282,7 +290,9 @@ function SavingsResults({
                 price (if using spot pricing) are excluded rather than estimated. The annualized benefit
                 (and any payback period) scales the calculated period up to a full year and assumes
                 today's prices and production hold steady — most accurate with close to a year of real
-                consumption data.
+                consumption data. A battery, if modeled, only shifts solar surplus to cover later
+                demand — it never charges from the grid or exports stored energy — at a fixed 90%
+                round-trip efficiency.
               </p>
             </div>
           )}

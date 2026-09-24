@@ -23,6 +23,16 @@ class ExportPricingInput(BaseModel):
     commission_cents_per_kwh: float = 0.0  # deducted from the sell price either way
 
 
+# Fixed, not user-configurable - a reasonable round-trip figure for a home
+# Li-ion battery, documented as a simplification rather than exposed as a knob.
+BATTERY_ROUND_TRIP_EFFICIENCY = 0.9
+
+
+class BatteryInput(BaseModel):
+    capacity_kwh: float
+    price_eur: float | None = None
+
+
 class MonthlyProductionInput(BaseModel):
     month: int
     kwh: float
@@ -38,6 +48,7 @@ class MonthlySavings(BaseModel):
     with_solar_cost_eur: float
     savings_eur: float
     export_revenue_eur: float
+    battery_delivered_kwh: float
 
 
 class SavingsResult(BaseModel):
@@ -49,6 +60,7 @@ class SavingsResult(BaseModel):
     with_solar_cost_eur: float
     savings_eur: float
     total_export_revenue_eur: float
+    total_battery_delivered_kwh: float
     annual_benefit_eur: float
     payback_years: float | None
     monthly: list[MonthlySavings]
@@ -89,6 +101,7 @@ def calculate_savings(
     spot_prices: list[SpotPriceEntry] | None,
     export_pricing: ExportPricingInput | None = None,
     system_cost_eur: float | None = None,
+    battery: BatteryInput | None = None,
 ) -> SavingsResult:
     """Combines consumption, a synthesized hourly production curve, and pricing
     into a savings estimate. See backend/app/solar_shape.py and the M5 plan
@@ -129,6 +142,8 @@ def calculate_savings(
     baseline_cost_eur = 0.0
     with_solar_cost_eur = 0.0
     total_export_revenue_eur = 0.0
+    total_battery_delivered_kwh = 0.0
+    battery_charge_kwh = 0.0
 
     monthly_acc: dict[tuple[int, int], dict[str, float]] = defaultdict(
         lambda: {
@@ -138,10 +153,15 @@ def calculate_savings(
             "baseline_cost_eur": 0.0,
             "with_solar_cost_eur": 0.0,
             "export_revenue_eur": 0.0,
+            "battery_delivered_kwh": 0.0,
         }
     )
 
-    for hour, consumption in consumption_by_hour.items():
+    # Chronological order matters here: the battery below carries state
+    # (battery_charge_kwh) across hours, so this can no longer rely on
+    # consumption_by_hour's dict/insertion order happening to be sorted.
+    for hour in sorted(consumption_by_hour):
+        consumption = consumption_by_hour[hour]
         if energy_pricing.type == "spot":
             spot_price = spot_price_by_hour.get(hour)
             if spot_price is None:
@@ -152,8 +172,29 @@ def calculate_savings(
 
         production = production_by_hour.get(hour, 0.0)
         self_consumed = min(consumption, production)
-        exported = max(production - consumption, 0.0)
-        grid_import = consumption - self_consumed
+        surplus = max(production - consumption, 0.0)
+        deficit = consumption - self_consumed
+
+        # Self-consumption-maximizing dispatch only: the battery charges
+        # from solar surplus and discharges to cover demand otherwise met
+        # by the grid - never charges from the grid, never discharges to
+        # export. (Price-arbitrage dispatch was discussed and deliberately
+        # not built - see CLAUDE.md.)
+        battery_delivered = 0.0
+        if battery is not None:
+            if surplus > 0:
+                charge = min(surplus, battery.capacity_kwh - battery_charge_kwh)
+                battery_charge_kwh += charge
+                surplus -= charge
+            elif deficit > 0:
+                deliverable = battery_charge_kwh * BATTERY_ROUND_TRIP_EFFICIENCY
+                battery_delivered = min(deficit, deliverable)
+                battery_charge_kwh -= battery_delivered / BATTERY_ROUND_TRIP_EFFICIENCY
+                deficit -= battery_delivered
+
+        exported = surplus
+        grid_import = deficit
+        self_consumed += battery_delivered
 
         transfer_price = transfer_price_cents_per_kwh(hour, transfer_pricing)
         price_per_kwh_eur = (energy_price + transfer_price) / 100
@@ -173,6 +214,7 @@ def calculate_savings(
         baseline_cost_eur += hour_baseline_cost
         with_solar_cost_eur += hour_with_solar_cost
         total_export_revenue_eur += hour_export_revenue
+        total_battery_delivered_kwh += battery_delivered
 
         local = hour.astimezone(HELSINKI_TZ)
         acc = monthly_acc[(local.year, local.month)]
@@ -182,6 +224,7 @@ def calculate_savings(
         acc["baseline_cost_eur"] += hour_baseline_cost
         acc["with_solar_cost_eur"] += hour_with_solar_cost
         acc["export_revenue_eur"] += hour_export_revenue
+        acc["battery_delivered_kwh"] += battery_delivered
 
     self_consumption_rate = total_self_consumed / total_production if total_production > 0 else 0.0
 
@@ -192,9 +235,13 @@ def calculate_savings(
     total_benefit_eur = (baseline_cost_eur - with_solar_cost_eur) + total_export_revenue_eur
     annual_benefit_eur = total_benefit_eur / period_days * 365.25
 
+    battery_cost_eur = battery.price_eur or 0.0 if battery is not None else 0.0
+    total_investment_eur = (system_cost_eur or 0.0) + battery_cost_eur
+    cost_given = system_cost_eur is not None or (battery is not None and battery.price_eur is not None)
+
     payback_years = None
-    if system_cost_eur is not None and annual_benefit_eur > 0:
-        payback_years = system_cost_eur / annual_benefit_eur
+    if cost_given and annual_benefit_eur > 0:
+        payback_years = total_investment_eur / annual_benefit_eur
 
     monthly = [
         MonthlySavings(
@@ -207,6 +254,7 @@ def calculate_savings(
             with_solar_cost_eur=round(acc["with_solar_cost_eur"], 2),
             savings_eur=round(acc["baseline_cost_eur"] - acc["with_solar_cost_eur"], 2),
             export_revenue_eur=round(acc["export_revenue_eur"], 2),
+            battery_delivered_kwh=round(acc["battery_delivered_kwh"], 3),
         )
         for (year, month), acc in sorted(monthly_acc.items())
     ]
@@ -219,6 +267,7 @@ def calculate_savings(
         baseline_cost_eur=round(baseline_cost_eur, 2),
         with_solar_cost_eur=round(with_solar_cost_eur, 2),
         total_export_revenue_eur=round(total_export_revenue_eur, 2),
+        total_battery_delivered_kwh=round(total_battery_delivered_kwh, 3),
         savings_eur=round(baseline_cost_eur - with_solar_cost_eur, 2),
         annual_benefit_eur=round(annual_benefit_eur, 2),
         payback_years=round(payback_years, 1) if payback_years is not None else None,

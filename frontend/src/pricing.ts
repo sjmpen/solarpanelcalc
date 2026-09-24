@@ -13,6 +13,11 @@ export type ExportPricing =
   | { type: 'fixed'; priceCentsPerKwh: number; commissionCentsPerKwh: number }
   | { type: 'spot'; commissionCentsPerKwh: number }
 
+export interface Battery {
+  capacityKwh: number
+  priceEur: number | null
+}
+
 export type TransferPricing =
   | { type: 'flat'; priceCentsPerKwh: number }
   | {

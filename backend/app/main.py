@@ -15,6 +15,7 @@ from app.pvgis import (
     fetch_solar_production,
 )
 from app.savings import (
+    BatteryInput,
     EnergyPricingInput,
     ExportPricingInput,
     MonthlyProductionInput,
@@ -83,6 +84,7 @@ class SavingsCalculationRequest(BaseModel):
     transfer_pricing: TransferPricingInput
     export_pricing: ExportPricingInput | None = None
     system_cost_eur: float | None = None
+    battery: BatteryInput | None = None
     start_date: date | None = None
     end_date: date | None = None
 
@@ -126,6 +128,7 @@ async def calculate_savings_endpoint(file: UploadFile, request: str = Form(...))
             spot_prices=spot_prices,
             export_pricing=export_pricing,
             system_cost_eur=parsed_request.system_cost_eur,
+            battery=parsed_request.battery,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

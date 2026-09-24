@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './App.css'
 import type { DateRange } from './api'
+import BatteryFields from './components/BatteryFields'
 import ConsumptionUpload from './components/ConsumptionUpload'
 import ExportPricingFields from './components/ExportPricingFields'
 import LocationPicker, { type Location } from './components/LocationPicker'
@@ -8,7 +9,7 @@ import PricingSelector from './components/PricingSelector'
 import SavingsResults from './components/SavingsResults'
 import SolarEstimate from './components/SolarEstimate'
 import TransferPricingFields from './components/TransferPricingFields'
-import type { ExportPricing, PricingChoice, TransferPricing } from './pricing'
+import type { Battery, ExportPricing, PricingChoice, TransferPricing } from './pricing'
 import type { SolarProductionEstimate } from './solar'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
   const [dateRange, setDateRange] = useState<DateRange | null>(null)
   const [location, setLocation] = useState<Location | null>(null)
   const [productionEstimate, setProductionEstimate] = useState<SolarProductionEstimate | null>(null)
+  const [battery, setBattery] = useState<Battery | null>(null)
   const [pricing, setPricing] = useState<PricingChoice | null>(null)
   const [transferPricing, setTransferPricing] = useState<TransferPricing | null>(null)
   const [exportPricing, setExportPricing] = useState<ExportPricing | null>(null)
@@ -28,6 +30,7 @@ function App() {
       <ConsumptionUpload onFileSelected={setConsumptionFile} onDateRangeChange={setDateRange} />
       <LocationPicker location={location} onLocationChange={setLocation} />
       <SolarEstimate location={location} onEstimateChange={setProductionEstimate} />
+      <BatteryFields onChange={setBattery} />
       <PricingSelector onPricingChange={setPricing} />
       <TransferPricingFields onChange={setTransferPricing} />
       <ExportPricingFields onChange={setExportPricing} />
@@ -36,6 +39,7 @@ function App() {
         dateRange={dateRange}
         location={location}
         productionEstimate={productionEstimate}
+        battery={battery}
         pricing={pricing}
         transferPricing={transferPricing}
         exportPricing={exportPricing}
