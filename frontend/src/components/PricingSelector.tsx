@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseDecimal, parseDecimalOrZero } from '../numberFormat'
 import { fetchSpotPrices, type PricingChoice, type SpotPriceEntry } from '../pricing'
 
 function today(): string {
@@ -7,12 +8,6 @@ function today(): string {
 
 function formatHour(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-function toNumberOrZero(value: string): number {
-  if (!value) return 0
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? 0 : parsed
 }
 
 interface PricingSelectorProps {
@@ -39,14 +34,14 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
     const state: FieldState = { mode, fixedPrice, margin, ...overrides }
 
     if (state.mode === 'fixed') {
-      const price = Number(state.fixedPrice)
-      if (state.fixedPrice && !Number.isNaN(price)) {
+      const price = parseDecimal(state.fixedPrice)
+      if (price !== null) {
         onPricingChange({ type: 'fixed', priceCentsPerKwh: price })
       }
     } else {
       onPricingChange({
         type: 'spot',
-        marginCentsPerKwh: toNumberOrZero(state.margin),
+        marginCentsPerKwh: parseDecimalOrZero(state.margin),
       })
     }
   }
@@ -87,7 +82,7 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
     }
   }
 
-  const marginValue = toNumberOrZero(margin)
+  const marginValue = parseDecimalOrZero(margin)
 
   return (
     <section>
@@ -109,9 +104,9 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
           Price (c/kWh, incl. VAT)
           <input
             id="fixed-price"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
+            placeholder="esim. 8,5"
             value={fixedPrice}
             onChange={(event) => handleFixedPriceChange(event.target.value)}
           />
@@ -123,9 +118,9 @@ function PricingSelector({ onPricingChange }: PricingSelectorProps) {
           Margin (c/kWh)
           <input
             id="spot-margin"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
+            placeholder="esim. 0,5"
             value={margin}
             onChange={(event) => handleMarginChange(event.target.value)}
           />

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseDecimal, parseDecimalOrZero } from '../numberFormat'
 import type { ExportPricing } from '../pricing'
 
 type ExportType = ExportPricing['type']
@@ -14,28 +15,16 @@ interface ExportPricingFieldsProps {
   onChange: (exportPricing: ExportPricing | null) => void
 }
 
-function parsePositive(value: string): number | null {
-  if (!value) return null
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? null : parsed
-}
-
-function toNumberOrZero(value: string): number {
-  if (!value) return 0
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? 0 : parsed
-}
-
 function buildExportPricing(state: FieldState): ExportPricing | null {
   if (!state.enabled) return null
 
-  const commissionCentsPerKwh = toNumberOrZero(state.commission)
+  const commissionCentsPerKwh = parseDecimalOrZero(state.commission)
 
   if (state.type === 'spot') {
     return { type: 'spot', commissionCentsPerKwh }
   }
 
-  const priceCentsPerKwh = parsePositive(state.fixedPrice)
+  const priceCentsPerKwh = parseDecimal(state.fixedPrice)
   if (priceCentsPerKwh === null) return null
   return { type: 'fixed', priceCentsPerKwh, commissionCentsPerKwh }
 }
@@ -106,9 +95,9 @@ function ExportPricingFields({ onChange }: ExportPricingFieldsProps) {
               Sell price (c/kWh)
               <input
                 id="export-fixed-price"
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                placeholder="esim. 5"
                 value={fixedPrice}
                 onChange={(event) => {
                   setFixedPrice(event.target.value)
@@ -122,9 +111,9 @@ function ExportPricingFields({ onChange }: ExportPricingFieldsProps) {
             Sales commission (c/kWh)
             <input
               id="export-commission"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 1"
               value={commission}
               onChange={(event) => {
                 setCommission(event.target.value)

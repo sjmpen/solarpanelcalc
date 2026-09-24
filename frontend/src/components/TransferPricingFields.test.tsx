@@ -24,6 +24,16 @@ describe('TransferPricingFields', () => {
     expect(onChange).toHaveBeenLastCalledWith({ type: 'flat', priceCentsPerKwh: 3.5 })
   })
 
+  it('accepts a comma as the decimal separator (Finnish convention)', async () => {
+    const onChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(<TransferPricingFields onChange={onChange} />)
+    await user.type(screen.getByLabelText(/^price \(c\/kwh\)/i), '3,5')
+
+    expect(onChange).toHaveBeenLastCalledWith({ type: 'flat', priceCentsPerKwh: 3.5 })
+  })
+
   it('requires both day and night prices before reporting a day-night contract', async () => {
     const onChange = vi.fn()
     const user = userEvent.setup()

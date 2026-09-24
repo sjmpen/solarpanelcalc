@@ -30,6 +30,20 @@ describe('PricingSelector', () => {
     })
   })
 
+  it('accepts a comma as the decimal separator (Finnish convention)', async () => {
+    const onPricingChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(<PricingSelector onPricingChange={onPricingChange} />)
+
+    await user.type(screen.getByLabelText(/price \(c\/kwh/i), '8,5')
+
+    expect(onPricingChange).toHaveBeenLastCalledWith({
+      type: 'fixed',
+      priceCentsPerKwh: 8.5,
+    })
+  })
+
   it('switches to spot mode, reports margin, loads prices, and shows totals', async () => {
     fetchSpotPricesMock.mockResolvedValue([
       { timestamp: '2024-06-14T12:00:00Z', priceCentsPerKwh: 4.57 },

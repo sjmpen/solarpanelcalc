@@ -63,6 +63,18 @@ and their electricity contract type (spot price vs. fixed price).
   fees anywhere in the model — they'd cancel out identically in both the
   baseline and with-solar cost, so they don't affect `savings_eur` at all;
   removed rather than kept as dead weight on the form.
+- **Comma as decimal separator**: all price inputs (`PricingSelector.tsx`,
+  `TransferPricingFields.tsx`, `ExportPricingFields.tsx`) are plain
+  `type="text"` fields (`inputMode="decimal"` for mobile numeric keyboards),
+  not `type="number"` — a native number input's decimal separator follows
+  the visitor's own browser/OS locale, which this app can't force to
+  Finnish. `frontend/src/numberFormat.ts`'s `parseDecimal`/
+  `parseDecimalOrZero` normalize by replacing a comma with a period before
+  `Number(...)`, so "8,5" and "8.5" both parse to `8.5` regardless of the
+  visitor's locale — Finnish input always works, without breaking anyone
+  who types a period out of habit. Values are stored and sent to the
+  backend as plain numbers either way; only the input's accepted text
+  format changed.
 - **Savings engine** (`backend/app/savings.py`, `POST /savings/calculate`):
   combines consumption + a synthesized hourly production curve + pricing
   into a savings estimate. See "How the savings engine works" below.

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { parseDecimal } from '../numberFormat'
 import type { TransferPricing } from '../pricing'
 
 type TransferType = TransferPricing['type']
@@ -17,29 +18,23 @@ interface TransferPricingFieldsProps {
   onChange: (transfer: TransferPricing | null) => void
 }
 
-function parsePositive(value: string): number | null {
-  if (!value) return null
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? null : parsed
-}
-
 function buildTransferPricing(state: FieldState): TransferPricing | null {
   if (state.type === 'flat') {
-    const priceCentsPerKwh = parsePositive(state.flatPrice)
+    const priceCentsPerKwh = parseDecimal(state.flatPrice)
     if (priceCentsPerKwh === null) return null
     return { type: 'flat', priceCentsPerKwh }
   }
 
   if (state.type === 'day-night') {
-    const dayPriceCentsPerKwh = parsePositive(state.dayPrice)
-    const nightPriceCentsPerKwh = parsePositive(state.nightPrice)
+    const dayPriceCentsPerKwh = parseDecimal(state.dayPrice)
+    const nightPriceCentsPerKwh = parseDecimal(state.nightPrice)
     if (dayPriceCentsPerKwh === null || nightPriceCentsPerKwh === null) return null
     return { type: 'day-night', dayPriceCentsPerKwh, nightPriceCentsPerKwh }
   }
 
-  const winterDayPriceCentsPerKwh = parsePositive(state.winterDayPrice)
-  const winterNightPriceCentsPerKwh = parsePositive(state.winterNightPrice)
-  const otherPriceCentsPerKwh = parsePositive(state.otherPrice)
+  const winterDayPriceCentsPerKwh = parseDecimal(state.winterDayPrice)
+  const winterNightPriceCentsPerKwh = parseDecimal(state.winterNightPrice)
+  const otherPriceCentsPerKwh = parseDecimal(state.otherPrice)
   if (
     winterDayPriceCentsPerKwh === null ||
     winterNightPriceCentsPerKwh === null ||
@@ -126,9 +121,9 @@ function TransferPricingFields({ onChange }: TransferPricingFieldsProps) {
           Price (c/kWh)
           <input
             id="transfer-flat-price"
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
+            placeholder="esim. 3,5"
             value={flatPrice}
             onChange={(event) => {
               setFlatPrice(event.target.value)
@@ -145,9 +140,9 @@ function TransferPricingFields({ onChange }: TransferPricingFieldsProps) {
             Day price (c/kWh)
             <input
               id="transfer-day-price"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 4"
               value={dayPrice}
               onChange={(event) => {
                 setDayPrice(event.target.value)
@@ -159,9 +154,9 @@ function TransferPricingFields({ onChange }: TransferPricingFieldsProps) {
             Night price (c/kWh)
             <input
               id="transfer-night-price"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 2"
               value={nightPrice}
               onChange={(event) => {
                 setNightPrice(event.target.value)
@@ -183,9 +178,9 @@ function TransferPricingFields({ onChange }: TransferPricingFieldsProps) {
             Winter day price (c/kWh)
             <input
               id="transfer-winter-day-price"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 4"
               value={winterDayPrice}
               onChange={(event) => {
                 setWinterDayPrice(event.target.value)
@@ -197,9 +192,9 @@ function TransferPricingFields({ onChange }: TransferPricingFieldsProps) {
             Winter night price (c/kWh)
             <input
               id="transfer-winter-night-price"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 2"
               value={winterNightPrice}
               onChange={(event) => {
                 setWinterNightPrice(event.target.value)
@@ -211,9 +206,9 @@ function TransferPricingFields({ onChange }: TransferPricingFieldsProps) {
             Rest of year price (c/kWh)
             <input
               id="transfer-other-price"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 1,5"
               value={otherPrice}
               onChange={(event) => {
                 setOtherPrice(event.target.value)

@@ -33,6 +33,23 @@ describe('ExportPricingFields', () => {
     expect(onChange).toHaveBeenLastCalledWith({ type: 'spot', commissionCentsPerKwh: 0.5 })
   })
 
+  it('accepts a comma as the decimal separator (Finnish convention)', async () => {
+    const onChange = vi.fn()
+    const user = userEvent.setup()
+
+    render(<ExportPricingFields onChange={onChange} />)
+    await user.click(screen.getByLabelText(/i get paid for excess electricity/i))
+    await user.click(screen.getByRole('radio', { name: /fixed price/i }))
+    await user.type(screen.getByLabelText(/sell price/i), '4,5')
+    await user.type(screen.getByLabelText(/sales commission/i), '0,5')
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      type: 'fixed',
+      priceCentsPerKwh: 4.5,
+      commissionCentsPerKwh: 0.5,
+    })
+  })
+
   it('stays null for a fixed export until the sell price is filled in', async () => {
     const onChange = vi.fn()
     const user = userEvent.setup()
