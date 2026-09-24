@@ -48,6 +48,27 @@ def test_upload_rejects_bad_csv():
     assert response.status_code == 422
 
 
+def test_upload_consumption_narrows_to_a_date_range():
+    with FIXTURE.open("rb") as f:
+        response = client.post(
+            "/consumption/upload",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            params={"start_date": "2025-01-01", "end_date": "2025-01-01"},
+        )
+    assert response.status_code == 200
+    assert response.json()["reading_count"] == 88  # see test_csv_parser.py for the math
+
+
+def test_upload_consumption_rejects_a_date_range_matching_nothing():
+    with FIXTURE.open("rb") as f:
+        response = client.post(
+            "/consumption/upload",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            params={"start_date": "2020-01-01", "end_date": "2020-01-01"},
+        )
+    assert response.status_code == 422
+
+
 async def _fake_fetch_solar_production(lat, lon, params):
     return SolarProductionEstimate(
         annual_kwh=1732.47, monthly=[MonthlyProduction(month=1, kwh=31.62)]
@@ -123,7 +144,12 @@ def test_spot_prices_rejects_invalid_date():
 FLAT_TRANSFER = {"type": "flat", "price_cents_per_kwh": 3.0}
 
 
-def _savings_request(energy_pricing: dict, transfer_pricing: dict = FLAT_TRANSFER) -> str:
+def _savings_request(
+    energy_pricing: dict,
+    transfer_pricing: dict = FLAT_TRANSFER,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
     return json.dumps(
         {
             "lat": 60.17,
@@ -131,6 +157,8 @@ def _savings_request(energy_pricing: dict, transfer_pricing: dict = FLAT_TRANSFE
             "monthly_production": [{"month": 1, "kwh": 150.0}],
             "energy_pricing": energy_pricing,
             "transfer_pricing": transfer_pricing,
+            "start_date": start_date,
+            "end_date": end_date,
         }
     )
 
@@ -154,6 +182,43 @@ def test_savings_calculate_fixed_price_end_to_end():
         body["baseline_cost_eur"] - body["with_solar_cost_eur"], abs=0.01
     )
     assert len(body["monthly"]) >= 1
+
+
+def test_savings_calculate_respects_a_narrowed_date_range():
+    def calculate(start_date: str | None, end_date: str | None) -> float:
+        with FIXTURE.open("rb") as f:
+            response = client.post(
+                "/savings/calculate",
+                files={"file": ("sample_consumption.csv", f, "text/csv")},
+                data={
+                    "request": _savings_request(
+                        {"type": "fixed", "price_cents_per_kwh": 10.0}, start_date=start_date, end_date=end_date
+                    )
+                },
+            )
+        assert response.status_code == 200
+        return response.json()["total_consumption_kwh"]
+
+    full_total = calculate(None, None)
+    narrowed_total = calculate("2025-01-01", "2025-01-01")
+
+    assert 0 < narrowed_total < full_total
+
+
+def test_savings_calculate_rejects_a_date_range_matching_nothing():
+    with FIXTURE.open("rb") as f:
+        response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": _savings_request(
+                    {"type": "fixed", "price_cents_per_kwh": 10.0},
+                    start_date="2020-01-01",
+                    end_date="2020-01-01",
+                )
+            },
+        )
+    assert response.status_code == 422
 
 
 def test_savings_calculate_rejects_bad_csv():

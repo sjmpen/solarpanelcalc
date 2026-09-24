@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { DateRange } from '../api'
 import type { PricingChoice, TransferPricing } from '../pricing'
 import { calculateSavings, type MonthlySavings, type SavingsResult } from '../savings'
 import type { SolarProductionEstimate } from '../solar'
@@ -11,6 +12,7 @@ const MONTH_ABBR = [
 
 interface SavingsResultsProps {
   file: File | null
+  dateRange?: DateRange | null
   location: Location | null
   productionEstimate: SolarProductionEstimate | null
   pricing: PricingChoice | null
@@ -122,7 +124,14 @@ function MonthlySavingsChart({ monthly }: { monthly: MonthlySavings[] }) {
   )
 }
 
-function SavingsResults({ file, location, productionEstimate, pricing, transferPricing }: SavingsResultsProps) {
+function SavingsResults({
+  file,
+  dateRange,
+  location,
+  productionEstimate,
+  pricing,
+  transferPricing,
+}: SavingsResultsProps) {
   const [result, setResult] = useState<SavingsResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -138,7 +147,7 @@ function SavingsResults({ file, location, productionEstimate, pricing, transferP
     setResult(null)
 
     try {
-      setResult(await calculateSavings(file, location, productionEstimate, pricing, transferPricing))
+      setResult(await calculateSavings(file, location, productionEstimate, pricing, transferPricing, dateRange))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Savings calculation failed')
     } finally {

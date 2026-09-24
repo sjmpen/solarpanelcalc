@@ -1,8 +1,14 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from app.csv_parser import InvalidConsumptionCsv, parse_fingrid_csv, summarize
+from app.csv_parser import (
+    InvalidConsumptionCsv,
+    filter_readings_by_date_range,
+    parse_fingrid_csv,
+    summarize,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample_consumption.csv"
 EXPECTED_READING_COUNT = 192  # 2 full days at 15-minute resolution
@@ -48,3 +54,34 @@ def test_summary_totals():
     assert summary.reading_count == EXPECTED_READING_COUNT
     assert summary.flagged_reading_count == 1
     assert summary.total_kwh == pytest.approx(sum(r.kwh for r in readings), rel=1e-6)
+
+
+def test_filter_readings_by_date_range_with_no_bounds_keeps_everything():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    assert filter_readings_by_date_range(readings, None, None) == readings
+
+
+def test_filter_readings_by_date_range_narrows_to_a_single_finnish_day():
+    # The fixture's UTC timestamps don't align with Finnish local midnight
+    # (UTC+2 in January) - 2025-01-01 (Finnish calendar day) only covers the
+    # readings from 2025-01-01T00:00Z up to (not including) 2025-01-01T22:00Z.
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    filtered = filter_readings_by_date_range(readings, date(2025, 1, 1), date(2025, 1, 1))
+
+    assert len(filtered) == 88
+    assert all(r.timestamp.isoformat() < "2025-01-01T22:00:00+00:00" for r in filtered)
+
+
+def test_filter_readings_by_date_range_end_date_is_inclusive():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    filtered = filter_readings_by_date_range(readings, date(2025, 1, 1), date(2025, 1, 2))
+
+    # Excludes the last 8 readings (2025-01-02T22:00-23:45Z), which fall on
+    # the Finnish calendar day 2025-01-03, one day past the requested end.
+    assert len(filtered) == 88 + 96
+
+
+def test_filter_readings_by_date_range_raises_when_nothing_matches():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    with pytest.raises(InvalidConsumptionCsv, match="No consumption data"):
+        filter_readings_by_date_range(readings, date(2020, 1, 1), date(2020, 1, 1))

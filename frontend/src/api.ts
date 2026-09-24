@@ -9,11 +9,23 @@ export interface ConsumptionSummary {
   flagged_reading_count: number
 }
 
-export async function uploadConsumptionCsv(file: File): Promise<ConsumptionSummary> {
+export interface DateRange {
+  start: string // YYYY-MM-DD
+  end: string // YYYY-MM-DD
+}
+
+export async function uploadConsumptionCsv(file: File, dateRange?: DateRange | null): Promise<ConsumptionSummary> {
   const body = new FormData()
   body.append('file', file)
 
-  const response = await fetch(`${API_BASE_URL}/consumption/upload`, {
+  const query = new URLSearchParams()
+  if (dateRange) {
+    query.set('start_date', dateRange.start)
+    query.set('end_date', dateRange.end)
+  }
+  const queryString = query.toString()
+
+  const response = await fetch(`${API_BASE_URL}/consumption/upload${queryString ? `?${queryString}` : ''}`, {
     method: 'POST',
     body,
   })

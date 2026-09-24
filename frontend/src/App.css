@@ -25,17 +25,23 @@ section h2 {
 .upload-form,
 .search-form,
 .solar-form,
-.spot-form {
+.spot-form,
+.date-range-fields {
   display: flex;
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
 }
 
+.date-range-fields {
+  margin-top: 16px;
+}
+
 .upload-form label,
 .search-form label,
 .solar-form label,
 .spot-form label,
+.date-range-fields label,
 .fixed-price-field {
   display: flex;
   flex-direction: column;
@@ -48,6 +54,7 @@ section h2 {
 .solar-form input,
 .solar-form select,
 .spot-form input,
+.date-range-fields input,
 .fixed-price-field input {
   font: inherit;
   padding: 6px 10px;

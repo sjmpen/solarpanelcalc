@@ -1,8 +1,9 @@
 import csv
 import io
-from datetime import datetime
+from datetime import date, datetime
 
 from app.models import ConsumptionSummary, Reading
+from app.pricing import finnish_day_bounds_utc
 
 EXPECTED_HEADER = [
     "Mittauspisteen tunnus",
@@ -76,6 +77,26 @@ def parse_fingrid_csv(raw: bytes) -> list[Reading]:
         raise InvalidConsumptionCsv("CSV file contains no data rows")
 
     return readings
+
+
+def filter_readings_by_date_range(
+    readings: list[Reading], start_date: date | None, end_date: date | None
+) -> list[Reading]:
+    """Narrows readings to [start_date, end_date], inclusive, as Finnish
+    calendar days (consistent with finnish_day_bounds_utc elsewhere in the
+    app). Either bound may be None to leave that side open.
+    """
+    lower = finnish_day_bounds_utc(start_date)[0] if start_date else None
+    upper = finnish_day_bounds_utc(end_date)[1] if end_date else None
+
+    filtered = [
+        r
+        for r in readings
+        if (lower is None or r.timestamp >= lower) and (upper is None or r.timestamp < upper)
+    ]
+    if not filtered:
+        raise InvalidConsumptionCsv("No consumption data within the selected date range")
+    return filtered
 
 
 def summarize(readings: list[Reading]) -> ConsumptionSummary:

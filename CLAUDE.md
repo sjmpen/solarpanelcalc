@@ -66,6 +66,20 @@ and their electricity contract type (spot price vs. fixed price).
 - **Savings engine** (`backend/app/savings.py`, `POST /savings/calculate`):
   combines consumption + a synthesized hourly production curve + pricing
   into a savings estimate. See "How the savings engine works" below.
+- **Consumption date-range subsetting**: once a CSV is uploaded,
+  `ConsumptionUpload.tsx` shows two `<input type="date">` fields ("From"/
+  "To") under the summary, defaulting to the file's full range. Changing
+  either re-uploads the same `File` object with `start_date`/`end_date`
+  query params to refresh the summary, and the selection is lifted to
+  `App.tsx` (`dateRange` state) so `/savings/calculate` uses the same
+  narrowed range — both endpoints share
+  `filter_readings_by_date_range` (`backend/app/csv_parser.py`), which
+  narrows readings to `[start_date, end_date]` inclusive as **Finnish**
+  calendar days (via `finnish_day_bounds_utc`, consistent with the rest of
+  the app's day handling — not raw UTC-midnight boundaries), and raises a
+  422 if nothing in the file matches. Narrowing also shrinks the spot-price
+  range `/savings/calculate` fetches (and caches), since filtering happens
+  before that fetch.
 
 ## Running the backend
 

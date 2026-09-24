@@ -100,7 +100,28 @@ describe('SavingsResults', () => {
     expect(screen.getByText('Exported (not priced)')).toBeInTheDocument()
     expect(screen.getByText(/simplified estimate/i)).toBeInTheDocument()
 
-    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, TRANSFER)
+    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, TRANSFER, undefined)
+  })
+
+  it('passes the selected date range through to calculateSavings', async () => {
+    calculateSavingsMock.mockResolvedValue({
+      totalConsumptionKwh: 0,
+      totalSelfConsumedKwh: 0,
+      totalExportedKwh: 0,
+      selfConsumptionRate: 0,
+      baselineCostEur: 0,
+      withSolarCostEur: 0,
+      savingsEur: 0,
+      monthly: [],
+    })
+    const user = userEvent.setup()
+    const dateRange = { start: '2025-01-01', end: '2025-01-15' }
+
+    render(<SavingsResults {...READY_PROPS} dateRange={dateRange} />)
+
+    await user.click(screen.getByRole('button', { name: /calculate savings/i }))
+
+    expect(calculateSavingsMock).toHaveBeenCalledWith(FILE, LOCATION, PRODUCTION, PRICING, TRANSFER, dateRange)
   })
 
   it('shows the backend error message when the calculation fails', async () => {

@@ -4,7 +4,7 @@ from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
 
-from app.csv_parser import InvalidConsumptionCsv, parse_fingrid_csv, summarize
+from app.csv_parser import InvalidConsumptionCsv, filter_readings_by_date_range, parse_fingrid_csv, summarize
 from app.models import ConsumptionSummary
 from app.pricing import PricingError, SpotPriceResponse, fetch_spot_price_range, fetch_spot_prices
 from app.pvgis import (
@@ -33,10 +33,13 @@ def health() -> dict[str, str]:
 
 
 @app.post("/consumption/upload", response_model=ConsumptionSummary)
-async def upload_consumption(file: UploadFile) -> ConsumptionSummary:
+async def upload_consumption(
+    file: UploadFile, start_date: date | None = None, end_date: date | None = None
+) -> ConsumptionSummary:
     raw = await file.read()
     try:
         readings = parse_fingrid_csv(raw)
+        readings = filter_readings_by_date_range(readings, start_date, end_date)
     except InvalidConsumptionCsv as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return summarize(readings)
@@ -72,6 +75,8 @@ class SavingsCalculationRequest(BaseModel):
     monthly_production: list[MonthlyProductionInput]
     energy_pricing: EnergyPricingInput
     transfer_pricing: TransferPricingInput
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 @app.post("/savings/calculate", response_model=SavingsResult)
@@ -84,6 +89,7 @@ async def calculate_savings_endpoint(file: UploadFile, request: str = Form(...))
     raw = await file.read()
     try:
         readings = parse_fingrid_csv(raw)
+        readings = filter_readings_by_date_range(readings, parsed_request.start_date, parsed_request.end_date)
     except InvalidConsumptionCsv as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

@@ -1,3 +1,4 @@
+import type { DateRange } from './api'
 import type { PricingChoice, TransferPricing } from './pricing'
 import type { SolarProductionEstimate } from './solar'
 
@@ -86,6 +87,7 @@ export async function calculateSavings(
   productionEstimate: SolarProductionEstimate,
   pricing: PricingChoice,
   transferPricing: TransferPricing,
+  dateRange?: DateRange | null,
 ): Promise<SavingsResult> {
   const requestBody = {
     lat: location.lat,
@@ -93,6 +95,7 @@ export async function calculateSavings(
     monthly_production: productionEstimate.monthly,
     energy_pricing: energyPricingToApi(pricing),
     transfer_pricing: transferPricingToApi(transferPricing),
+    ...(dateRange ? { start_date: dateRange.start, end_date: dateRange.end } : {}),
   }
 
   const formData = new FormData()
