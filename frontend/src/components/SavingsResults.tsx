@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { DateRange } from '../api'
+import { parseDecimal } from '../numberFormat'
 import type { ExportPricing, PricingChoice, TransferPricing } from '../pricing'
 import { calculateSavings, type MonthlySavings, type SavingsResult } from '../savings'
 import type { SolarProductionEstimate } from '../solar'
@@ -137,6 +138,8 @@ function SavingsResults({
   const [result, setResult] = useState<SavingsResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [systemCost, setSystemCost] = useState('')
+  const [lastSystemCostEur, setLastSystemCostEur] = useState<number | null>(null)
 
   const missing = missingPrerequisites({ file, location, productionEstimate, pricing, transferPricing })
   const ready = missing.length === 0
@@ -148,6 +151,9 @@ function SavingsResults({
     setError(null)
     setResult(null)
 
+    const systemCostEur = parseDecimal(systemCost)
+    setLastSystemCostEur(systemCostEur)
+
     try {
       setResult(
         await calculateSavings(
@@ -158,6 +164,7 @@ function SavingsResults({
           transferPricing,
           dateRange,
           exportPricing,
+          systemCostEur,
         ),
       )
     } catch (err) {
@@ -175,6 +182,18 @@ function SavingsResults({
         <p>Still need: {missing.join(', ')}.</p>
       ) : (
         <>
+          <label className="fixed-price-field" htmlFor="system-cost">
+            System cost (€, optional)
+            <input
+              id="system-cost"
+              type="text"
+              inputMode="decimal"
+              placeholder="esim. 8000"
+              value={systemCost}
+              onChange={(event) => setSystemCost(event.target.value)}
+            />
+          </label>
+
           <button type="button" className="calculate-button" onClick={handleCalculate} disabled={loading}>
             {loading ? 'Calculating…' : 'Calculate savings'}
           </button>
@@ -189,6 +208,18 @@ function SavingsResults({
                 {result.monthly.length} month{result.monthly.length === 1 ? '' : 's'}
                 {result.totalExportRevenueEur > 0 ? ' in savings and export income' : ''}.
               </p>
+
+              {lastSystemCostEur !== null && (
+                <p className="payback-line">
+                  {result.paybackYears !== null ? (
+                    <>
+                      Estimated payback period: <strong>{result.paybackYears.toLocaleString()} years</strong>
+                    </>
+                  ) : (
+                    'Based on this estimate, the system would not pay for itself.'
+                  )}
+                </p>
+              )}
 
               <div className="summary">
                 <dl>
@@ -209,6 +240,9 @@ function SavingsResults({
 
                   <dt>Export revenue</dt>
                   <dd>€{result.totalExportRevenueEur.toLocaleString()}</dd>
+
+                  <dt>Annualized benefit</dt>
+                  <dd>€{result.annualBenefitEur.toLocaleString()}/year</dd>
                 </dl>
               </div>
 
@@ -245,7 +279,10 @@ function SavingsResults({
                 real hourly irradiance data. Exported (excess) energy is only priced as export revenue
                 when sell-back pricing is entered above; otherwise it's shown in kWh but excluded from
                 the totals, since sell-back compensation varies by contract. Hours with no matching spot
-                price (if using spot pricing) are excluded rather than estimated.
+                price (if using spot pricing) are excluded rather than estimated. The annualized benefit
+                (and any payback period) scales the calculated period up to a full year and assumes
+                today's prices and production hold steady — most accurate with close to a year of real
+                consumption data.
               </p>
             </div>
           )}

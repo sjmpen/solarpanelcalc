@@ -262,6 +262,10 @@ section h2 {
   text-align: right;
 }
 
+#system-cost {
+  margin-bottom: 16px;
+}
+
 .calculate-button {
   font: inherit;
   padding: 10px 20px;
@@ -284,6 +288,16 @@ section h2 {
 
 .savings-headline strong {
   font-size: 24px;
+}
+
+.payback-line {
+  font-size: 15px;
+  color: var(--text);
+  margin-top: 4px;
+}
+
+.payback-line strong {
+  color: var(--text-h);
 }
 
 .chart-scroll {

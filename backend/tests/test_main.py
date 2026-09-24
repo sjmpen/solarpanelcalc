@@ -150,6 +150,7 @@ def _savings_request(
     start_date: str | None = None,
     end_date: str | None = None,
     export_pricing: dict | None = None,
+    system_cost_eur: float | None = None,
 ) -> str:
     return json.dumps(
         {
@@ -159,6 +160,7 @@ def _savings_request(
             "energy_pricing": energy_pricing,
             "transfer_pricing": transfer_pricing,
             "export_pricing": export_pricing,
+            "system_cost_eur": system_cost_eur,
             "start_date": start_date,
             "end_date": end_date,
         }
@@ -184,6 +186,36 @@ def test_savings_calculate_fixed_price_end_to_end():
         body["baseline_cost_eur"] - body["with_solar_cost_eur"], abs=0.01
     )
     assert len(body["monthly"]) >= 1
+
+
+def test_savings_calculate_computes_payback_years_from_system_cost():
+    with FIXTURE.open("rb") as f:
+        no_cost_response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={"request": _savings_request({"type": "fixed", "price_cents_per_kwh": 10.0})},
+        )
+    with FIXTURE.open("rb") as f:
+        with_cost_response = client.post(
+            "/savings/calculate",
+            files={"file": ("sample_consumption.csv", f, "text/csv")},
+            data={
+                "request": _savings_request(
+                    {"type": "fixed", "price_cents_per_kwh": 10.0}, system_cost_eur=2000.0
+                )
+            },
+        )
+
+    assert no_cost_response.status_code == 200
+    assert with_cost_response.status_code == 200
+    no_cost_body = no_cost_response.json()
+    with_cost_body = with_cost_response.json()
+
+    assert no_cost_body["payback_years"] is None
+    assert no_cost_body["annual_benefit_eur"] == with_cost_body["annual_benefit_eur"]
+    assert with_cost_body["payback_years"] == pytest.approx(
+        2000.0 / with_cost_body["annual_benefit_eur"], abs=0.1
+    )
 
 
 def test_savings_calculate_prices_exported_energy_when_export_pricing_is_set():

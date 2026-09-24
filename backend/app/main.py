@@ -82,6 +82,7 @@ class SavingsCalculationRequest(BaseModel):
     energy_pricing: EnergyPricingInput
     transfer_pricing: TransferPricingInput
     export_pricing: ExportPricingInput | None = None
+    system_cost_eur: float | None = None
     start_date: date | None = None
     end_date: date | None = None
 
@@ -124,6 +125,7 @@ async def calculate_savings_endpoint(file: UploadFile, request: str = Form(...))
             transfer_pricing=parsed_request.transfer_pricing,
             spot_prices=spot_prices,
             export_pricing=export_pricing,
+            system_cost_eur=parsed_request.system_cost_eur,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

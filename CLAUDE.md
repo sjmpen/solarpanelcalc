@@ -91,6 +91,20 @@ and their electricity contract type (spot price vs. fixed price).
   separately, and folded into the headline only when non-zero). A fixed
   energy contract with spot-priced export still triggers the Elering fetch
   in `main.py` (`needs_spot_prices` now checks both).
+- **Investment payback period** (optional "System cost (€)" field, local
+  `useState` in `SavingsResults.tsx` — not lifted to `App.tsx`, since
+  nothing else needs it): of the three approaches discussed with the user
+  (simple payback / payback + lifetime ROI / full discounted cash flow),
+  this implements the simplest — a plain payback period, no assumed
+  lifespan or discount rate. `calculate_savings` (`backend/app/savings.py`)
+  always computes `annual_benefit_eur` by scaling the calculated period's
+  total benefit (`savings_eur + total_export_revenue_eur`, using the raw
+  pre-rounding sums) up to a 365.25-day year, based on the actual Finnish-
+  calendar-day span of the (possibly date-range-filtered) readings —
+  most accurate with close to a year of real data, rougher the shorter the
+  upload. `payback_years = system_cost_eur / annual_benefit_eur` is `None`
+  (shown as "would not pay for itself") when no cost was entered or the
+  annualized benefit is ≤ 0, never a division-by-zero or negative number.
 - **Consumption date-range subsetting**: once a CSV is uploaded,
   `ConsumptionUpload.tsx` shows two `<input type="date">` fields ("From"/
   "To") under the summary, defaulting to the file's full range. Changing

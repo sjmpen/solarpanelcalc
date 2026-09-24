@@ -49,6 +49,8 @@ class SavingsResult(BaseModel):
     with_solar_cost_eur: float
     savings_eur: float
     total_export_revenue_eur: float
+    annual_benefit_eur: float
+    payback_years: float | None
     monthly: list[MonthlySavings]
 
 
@@ -86,6 +88,7 @@ def calculate_savings(
     transfer_pricing: TransferPricingInput,
     spot_prices: list[SpotPriceEntry] | None,
     export_pricing: ExportPricingInput | None = None,
+    system_cost_eur: float | None = None,
 ) -> SavingsResult:
     """Combines consumption, a synthesized hourly production curve, and pricing
     into a savings estimate. See backend/app/solar_shape.py and the M5 plan
@@ -182,6 +185,17 @@ def calculate_savings(
 
     self_consumption_rate = total_self_consumed / total_production if total_production > 0 else 0.0
 
+    # Scale the calculated period's total benefit to a 365.25-day year, so a
+    # payback period can be estimated even from a shorter upload - most
+    # accurate with close to a year of real data (documented in CLAUDE.md).
+    period_days = (end_local_day - start_local_day).days + 1
+    total_benefit_eur = (baseline_cost_eur - with_solar_cost_eur) + total_export_revenue_eur
+    annual_benefit_eur = total_benefit_eur / period_days * 365.25
+
+    payback_years = None
+    if system_cost_eur is not None and annual_benefit_eur > 0:
+        payback_years = system_cost_eur / annual_benefit_eur
+
     monthly = [
         MonthlySavings(
             year=year,
@@ -206,5 +220,7 @@ def calculate_savings(
         with_solar_cost_eur=round(with_solar_cost_eur, 2),
         total_export_revenue_eur=round(total_export_revenue_eur, 2),
         savings_eur=round(baseline_cost_eur - with_solar_cost_eur, 2),
+        annual_benefit_eur=round(annual_benefit_eur, 2),
+        payback_years=round(payback_years, 1) if payback_years is not None else None,
         monthly=monthly,
     )

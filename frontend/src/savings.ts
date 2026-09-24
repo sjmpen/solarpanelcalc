@@ -25,6 +25,8 @@ export interface SavingsResult {
   withSolarCostEur: number
   savingsEur: number
   totalExportRevenueEur: number
+  annualBenefitEur: number
+  paybackYears: number | null
   monthly: MonthlySavings[]
 }
 
@@ -37,6 +39,8 @@ interface SavingsApiResponse {
   with_solar_cost_eur: number
   savings_eur: number
   total_export_revenue_eur: number
+  annual_benefit_eur: number
+  payback_years: number | null
   monthly: {
     year: number
     month: number
@@ -107,6 +111,7 @@ export async function calculateSavings(
   transferPricing: TransferPricing,
   dateRange?: DateRange | null,
   exportPricing?: ExportPricing | null,
+  systemCostEur?: number | null,
 ): Promise<SavingsResult> {
   const requestBody = {
     lat: location.lat,
@@ -116,6 +121,7 @@ export async function calculateSavings(
     transfer_pricing: transferPricingToApi(transferPricing),
     ...(dateRange ? { start_date: dateRange.start, end_date: dateRange.end } : {}),
     ...(exportPricing ? { export_pricing: exportPricingToApi(exportPricing) } : {}),
+    ...(systemCostEur != null ? { system_cost_eur: systemCostEur } : {}),
   }
 
   const formData = new FormData()
@@ -142,6 +148,8 @@ export async function calculateSavings(
     withSolarCostEur: body.with_solar_cost_eur,
     savingsEur: body.savings_eur,
     totalExportRevenueEur: body.total_export_revenue_eur,
+    annualBenefitEur: body.annual_benefit_eur,
+    paybackYears: body.payback_years,
     monthly: body.monthly.map((m) => ({
       year: m.year,
       month: m.month,

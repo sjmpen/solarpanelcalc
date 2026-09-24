@@ -77,6 +77,8 @@ describe('SavingsResults', () => {
       withSolarCostEur: 120,
       savingsEur: 30,
       totalExportRevenueEur: 0,
+      annualBenefitEur: 120,
+      paybackYears: null,
       monthly: [
         {
           year: 2025,
@@ -102,6 +104,7 @@ describe('SavingsResults', () => {
     expect(screen.getByText(/88\.0%/)).toBeInTheDocument()
     expect(screen.getAllByText('Exported').length).toBeGreaterThan(0)
     expect(screen.getByText(/simplified estimate/i)).toBeInTheDocument()
+    expect(screen.queryByText(/estimated payback period/i)).not.toBeInTheDocument()
 
     expect(calculateSavingsMock).toHaveBeenCalledWith(
       FILE,
@@ -111,6 +114,7 @@ describe('SavingsResults', () => {
       TRANSFER,
       undefined,
       undefined,
+      null,
     )
   })
 
@@ -124,6 +128,8 @@ describe('SavingsResults', () => {
       withSolarCostEur: 120,
       savingsEur: 30,
       totalExportRevenueEur: 5,
+      annualBenefitEur: 140,
+      paybackYears: null,
       monthly: [
         {
           year: 2025,
@@ -157,6 +163,7 @@ describe('SavingsResults', () => {
       TRANSFER,
       undefined,
       exportPricing,
+      null,
     )
   })
 
@@ -170,6 +177,8 @@ describe('SavingsResults', () => {
       withSolarCostEur: 0,
       savingsEur: 0,
       totalExportRevenueEur: 0,
+      annualBenefitEur: 0,
+      paybackYears: null,
       monthly: [],
     })
     const user = userEvent.setup()
@@ -187,7 +196,102 @@ describe('SavingsResults', () => {
       TRANSFER,
       dateRange,
       undefined,
+      null,
     )
+  })
+
+  it('shows the payback period when a system cost is entered', async () => {
+    calculateSavingsMock.mockResolvedValue({
+      totalConsumptionKwh: 1000,
+      totalSelfConsumedKwh: 150,
+      totalExportedKwh: 20,
+      selfConsumptionRate: 0.88,
+      baselineCostEur: 150,
+      withSolarCostEur: 120,
+      savingsEur: 30,
+      totalExportRevenueEur: 0,
+      annualBenefitEur: 120,
+      paybackYears: 16.7,
+      monthly: [],
+    })
+    const user = userEvent.setup()
+
+    render(<SavingsResults {...READY_PROPS} />)
+
+    await user.type(screen.getByLabelText(/system cost/i), '2000')
+    await user.click(screen.getByRole('button', { name: /calculate savings/i }))
+
+    await screen.findByText(/estimated payback period/i)
+    expect(document.querySelector('.payback-line')?.textContent).toMatch(/16\.7 years/)
+    expect(screen.getAllByText(/annualized benefit/i).length).toBeGreaterThan(0)
+
+    expect(calculateSavingsMock).toHaveBeenCalledWith(
+      FILE,
+      LOCATION,
+      PRODUCTION,
+      PRICING,
+      TRANSFER,
+      undefined,
+      undefined,
+      2000,
+    )
+  })
+
+  it('accepts a comma as the decimal separator for system cost', async () => {
+    calculateSavingsMock.mockResolvedValue({
+      totalConsumptionKwh: 0,
+      totalSelfConsumedKwh: 0,
+      totalExportedKwh: 0,
+      selfConsumptionRate: 0,
+      baselineCostEur: 0,
+      withSolarCostEur: 0,
+      savingsEur: 0,
+      totalExportRevenueEur: 0,
+      annualBenefitEur: 0,
+      paybackYears: null,
+      monthly: [],
+    })
+    const user = userEvent.setup()
+
+    render(<SavingsResults {...READY_PROPS} />)
+
+    await user.type(screen.getByLabelText(/system cost/i), '2000,5')
+    await user.click(screen.getByRole('button', { name: /calculate savings/i }))
+
+    expect(calculateSavingsMock).toHaveBeenCalledWith(
+      FILE,
+      LOCATION,
+      PRODUCTION,
+      PRICING,
+      TRANSFER,
+      undefined,
+      undefined,
+      2000.5,
+    )
+  })
+
+  it('shows "would not pay for itself" when annual benefit is zero despite a cost being entered', async () => {
+    calculateSavingsMock.mockResolvedValue({
+      totalConsumptionKwh: 0,
+      totalSelfConsumedKwh: 0,
+      totalExportedKwh: 0,
+      selfConsumptionRate: 0,
+      baselineCostEur: 0,
+      withSolarCostEur: 0,
+      savingsEur: 0,
+      totalExportRevenueEur: 0,
+      annualBenefitEur: 0,
+      paybackYears: null,
+      monthly: [],
+    })
+    const user = userEvent.setup()
+
+    render(<SavingsResults {...READY_PROPS} />)
+
+    await user.type(screen.getByLabelText(/system cost/i), '2000')
+    await user.click(screen.getByRole('button', { name: /calculate savings/i }))
+
+    expect(await screen.findByText(/would not pay for itself/i)).toBeInTheDocument()
   })
 
   it('shows the backend error message when the calculation fails', async () => {

@@ -24,6 +24,8 @@ describe('calculateSavings', () => {
         with_solar_cost_eur: 120,
         savings_eur: 30,
         total_export_revenue_eur: 4,
+        annual_benefit_eur: 340,
+        payback_years: 5.9,
         monthly: [
           {
             year: 2025,
@@ -59,6 +61,8 @@ describe('calculateSavings', () => {
       withSolarCostEur: 120,
       savingsEur: 30,
       totalExportRevenueEur: 4,
+      annualBenefitEur: 340,
+      paybackYears: 5.9,
       monthly: [
         {
           year: 2025,
@@ -256,6 +260,75 @@ describe('calculateSavings', () => {
     const formData = options.body as FormData
     const request = JSON.parse(formData.get('request') as string)
     expect(request).not.toHaveProperty('export_pricing')
+  })
+
+  it('includes system_cost_eur in the request when given', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        total_consumption_kwh: 0,
+        total_self_consumed_kwh: 0,
+        total_exported_kwh: 0,
+        self_consumption_rate: 0,
+        baseline_cost_eur: 0,
+        with_solar_cost_eur: 0,
+        savings_eur: 0,
+        total_export_revenue_eur: 0,
+        annual_benefit_eur: 0,
+        payback_years: null,
+        monthly: [],
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await calculateSavings(
+      csvFile(),
+      { lat: 60.17, lon: 24.94 },
+      PRODUCTION_ESTIMATE,
+      { type: 'fixed', priceCentsPerKwh: 10 },
+      { type: 'flat', priceCentsPerKwh: 3.5 },
+      null,
+      null,
+      2000,
+    )
+
+    const [, options] = fetchMock.mock.calls[0]
+    const formData = options.body as FormData
+    const request = JSON.parse(formData.get('request') as string)
+    expect(request.system_cost_eur).toBe(2000)
+  })
+
+  it('omits system_cost_eur when none is given', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        total_consumption_kwh: 0,
+        total_self_consumed_kwh: 0,
+        total_exported_kwh: 0,
+        self_consumption_rate: 0,
+        baseline_cost_eur: 0,
+        with_solar_cost_eur: 0,
+        savings_eur: 0,
+        total_export_revenue_eur: 0,
+        annual_benefit_eur: 0,
+        payback_years: null,
+        monthly: [],
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await calculateSavings(
+      csvFile(),
+      { lat: 60.17, lon: 24.94 },
+      PRODUCTION_ESTIMATE,
+      { type: 'fixed', priceCentsPerKwh: 10 },
+      { type: 'flat', priceCentsPerKwh: 3.5 },
+    )
+
+    const [, options] = fetchMock.mock.calls[0]
+    const formData = options.body as FormData
+    const request = JSON.parse(formData.get('request') as string)
+    expect(request).not.toHaveProperty('system_cost_eur')
   })
 
   it('throws the backend error message on failure', async () => {

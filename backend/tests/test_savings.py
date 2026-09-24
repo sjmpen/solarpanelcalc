@@ -254,6 +254,72 @@ def test_spot_export_price_minus_commission_prices_exported_energy():
     assert result.total_export_revenue_eur == pytest.approx(expected_revenue, abs=0.01)
 
 
+def test_annual_benefit_scales_the_period_to_a_year_and_payback_is_none_without_a_cost():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=8.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=100.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+    )
+
+    # The fixture's readings span 3 Finnish calendar days (2025-01-01 through
+    # 2025-01-03 - the last few UTC hours roll into the next Finnish day,
+    # same boundary math as test_csv_parser.py's date-range-filter tests).
+    # abs tolerance is wide because the ~122x annualization multiplier
+    # (365.25 / 3 days) amplifies the rounding already applied to savings_eur.
+    total_benefit = result.savings_eur + result.total_export_revenue_eur
+    expected_annual = total_benefit / 3 * 365.25
+    assert result.annual_benefit_eur == pytest.approx(expected_annual, abs=1.0)
+    assert result.payback_years is None
+
+
+def test_payback_years_computed_from_system_cost():
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=8.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=100.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        system_cost_eur=2000.0,
+    )
+
+    assert result.annual_benefit_eur > 0
+    assert result.payback_years == pytest.approx(2000.0 / result.annual_benefit_eur, abs=0.1)
+
+
+def test_payback_years_is_none_when_annual_benefit_is_zero_even_with_a_cost_given():
+    # Zero solar production - no self-consumption, no export - means zero
+    # benefit, so a payback period is undefined (never "None" years) rather
+    # than a division-by-zero or nonsensical result.
+    readings = parse_fingrid_csv(FIXTURE.read_bytes())
+    energy_pricing = EnergyPricingInput(type="fixed", price_cents_per_kwh=10.0)
+
+    result = calculate_savings(
+        readings=readings,
+        lat=HELSINKI[0],
+        lon=HELSINKI[1],
+        monthly_production=[MonthlyProductionInput(month=1, kwh=0.0)],
+        energy_pricing=energy_pricing,
+        transfer_pricing=NO_TRANSFER,
+        spot_prices=None,
+        system_cost_eur=2000.0,
+    )
+
+    assert result.annual_benefit_eur == 0
+    assert result.payback_years is None
+
+
 def test_raises_on_empty_readings():
     with pytest.raises(ValueError, match="No consumption readings"):
         calculate_savings(
